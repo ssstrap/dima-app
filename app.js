@@ -171,13 +171,21 @@
     var tt = META.tiktok;
     var el = document.getElementById('ttFollowers');
     if (tt && tt.followers) {
-      if (heroAnimated) el.textContent = num(tt.followers);
-      else { countUp(el, tt.followers); heroAnimated = true; }
+      // tt.now — точная цифра с профиля (раз в день), tt.followers/net — история из Studio, отстаёт на 1–2 дня
+      var cur = tt.now && tt.now.followers > 0 ? tt.now.followers : tt.followers;
+      if (heroAnimated) el.textContent = num(cur);
+      else { countUp(el, cur); heroAnimated = true; }
       var sub = '';
-      if (tt.net) sub += '▲ +' + num(tt.net) + ' за день ';
-      if (tt.date) sub += '<small>· на ' + parseDate(tt.date).getUTCDate() + ' ' + MON_S[parseDate(tt.date).getUTCMonth()] + '</small>';
+      if (tt.now && tt.now.followers > tt.followers) {
+        var at = new Date(new Date(tt.now.at).getTime() + 3 * 3600e3);
+        sub += '▲ +' + num(tt.now.followers - tt.followers) + ' с ' + parseDate(tt.date).getUTCDate() + ' ' + MON_S[parseDate(tt.date).getUTCMonth()] + ' ' +
+          '<small>· ' + at.getUTCDate() + ' ' + MON_S[at.getUTCMonth()] + ' ' + pad(at.getUTCHours()) + ':' + pad(at.getUTCMinutes()) + '</small>';
+      } else {
+        if (tt.net) sub += '▲ +' + num(tt.net) + ' за день ';
+        if (tt.date) sub += '<small>· на ' + parseDate(tt.date).getUTCDate() + ' ' + MON_S[parseDate(tt.date).getUTCMonth()] + '</small>';
+      }
       document.getElementById('ttNet').innerHTML = sub;
-      renderGoal(tt);
+      renderGoal(Object.assign({}, tt, { followers: cur }));
     }
     var tg = META.tg;
     document.getElementById('tgFollowers').textContent = tg && tg.followers ? num(tg.followers) : '—';
