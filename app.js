@@ -19,7 +19,7 @@
     'тревожный': ['⚡', 'напряжённый, с паузой', '#ff7b7b'],
     'ностальгия': ['📼', 'старый хит, ламповый', '#c9a8ff'],
     'дерзкий': ['🔥', 'уверенный бит', '#ff8a3d'],
-    'клубный': ['🪩', 'бит, дубайский вайб', '#ff4f9a'],
+    'клубный': ['🪩', 'бит, дубайский вайб', '#2fe0a6'],
     'романтичный': ['💗', 'мягкий, про любовь', '#f9a8d4']
   };
   var WD = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
@@ -39,6 +39,19 @@
   var tdone = {};
   try { tdone = JSON.parse(localStorage.getItem(TKEY)) || {}; } catch (e) { tdone = {}; }
   function saveTasks() { try { localStorage.setItem(TKEY, JSON.stringify(tdone)); } catch (e) { /* приватный режим */ } }
+  // правки Димы: переименовал, удалил, добавил своё. Пока живут на этом телефоне, потом уедут в Supabase
+  var EKEY = 'dimaTasksEdit.v1';
+  var tedit = {};
+  try { tedit = JSON.parse(localStorage.getItem(EKEY)) || {}; } catch (e) { tedit = {}; }
+  tedit.edits = tedit.edits || {};
+  tedit.added = tedit.added || [];
+  tedit.removed = tedit.removed || {};
+  function saveEdits() { try { localStorage.setItem(EKEY, JSON.stringify(tedit)); } catch (e) { /* приватный режим */ } }
+  function allTasks() {
+    return (TASKS.tasks || []).filter(function (t) { return !tedit.removed[t.id]; })
+      .map(function (t) { var e = tedit.edits[t.id]; return e ? Object.assign({}, t, e) : t; })
+      .concat(tedit.added);
+  }
 
   var ui = {
     tab: 'tiktok',
@@ -277,14 +290,15 @@
         esc(t.toLowerCase()) + '<span class="cnt">' + cnt + '</span></button>';
     }).join('');
 
-    var nextId = nextSlotId(day);
+    // Дима выкладывает пачкой, поэтому время и «следующий» не показываем
+    var nextId = null;
 
     var doneCount = day.items.filter(function (it) { return store.done[it.id]; }).length;
     var items = day.items.filter(function (it) { return ui.filter === 'все' || it.theme === ui.filter; });
 
     var cards = items.map(function (it) {
       var test = it.test ? '<span class="chip test">' + (/^(тест|тренд|охват|свобод)/i.test(it.test) ? '' : 'тест: ') + esc(it.test) + '</span>' : '';
-      var time = it.slot ? '<span class="time">' + esc(it.slot) + ' <small>мск</small> <span class="alt">· ' + altTime(it.slot) + ' <small>' + esc(TZ.label.toLowerCase()) + '</small></span></span>' : '';
+      var time = '';
       return '<article class="card' + (store.done[it.id] ? ' done' : '') + (it.id === nextId ? ' next' : '') + '" data-card="' + it.id + '">' +
         '<div class="card-top"><span class="num">' + it.n + '</span>' +
         '<span class="chip theme ' + themeClass(it.theme) + '">' + esc(it.theme.toLowerCase()) + '</span>' + test +
@@ -304,7 +318,7 @@
     return '<div class="section-title">Мои видео</div>' +
       '<div class="days-wrap" id="daysWrap"><div class="days" id="days">' + chips + '</div></div>' +
       '<div class="day-head"><div><div class="day-title">' + dateLong(date) + '</div>' +
-      '<div class="day-sub">' + day.items.length + ' ' + plural(day.items.length, 'текст', 'текста', 'текстов') + ' · бери 5–7 · с 18:00 до 6:00 мск, раз в 40 мин</div></div>' +
+      '<div class="day-sub">' + day.items.length + ' ' + plural(day.items.length, 'текст', 'текста', 'текстов') + ' · бери 5–7</div></div>' +
       '<div class="progress' + (doneCount >= 5 ? ' ok' : '') + '"><b>' + doneCount + '</b><span>выложено</span></div></div>' +
       '<div class="chips filters">' + filters + '</div>' +
       '<div class="list">' + (cards || '<div class="empty">В этой теме пусто</div>') + '</div>' + soon();
@@ -350,7 +364,14 @@
   // ---------- Telegram ----------
   function renderTg() {
     var channels = TG.channels || [];
-    var segs = channels.map(function (c) { return [c.key, c.title]; }).concat([['stories', 'Сторис']]);
+    var segs = channels.map(function (c) { return [c.key, c.title]; }).concat([['stories', 'Сторис TT']]);
+    var today0 = calendarToday();
+    // прошлые дни прячем: открыл в понедельник — сверху понедельник
+    var pastBtn = function (n) {
+      return n ? '<button class="btn wide ghost past-btn" type="button" data-showpast="1">' +
+        (ui.showPast ? 'скрыть прошлые' : 'показать прошлые · ' + n) + '</button>' : '';
+    };
+    var visible = function (x) { return !x.date || x.date >= today0 || ui.showPast; };
     if (!segs.some(function (s) { return s[0] === ui.tgSeg; })) ui.tgSeg = segs[0][0];
     var seg = '<div class="seg">' + segs.map(function (s) {
       return '<button class="' + (ui.tgSeg === s[0] ? 'on' : '') + '" data-seg="' + s[0] + '" type="button">' + esc(s[1]) + '</button>';
@@ -358,23 +379,31 @@
 
     var body;
     if (ui.tgSeg === 'stories') {
-      body = (TG.stories || []).map(function (st) {
+      var allSt = TG.stories || [];
+      var pastSt = allSt.filter(function (st) { return st.date && st.date < today0; }).length;
+      body = allSt.filter(visible).map(function (st) {
         var slides = st.slides.map(function (sl, i) {
           return '<div class="slide"><span class="slide-n">' + (i + 1) + '</span><div class="slide-body">' +
             '<div class="slide-text" data-copy="' + reg(sl.text) + '" data-what="текст">' + marks(sl.text) + '</div>' +
             (sl.sticker && sl.sticker !== '—' ? '<div class="slide-sticker">стикер: ' + esc(sl.sticker) + '</div>' : '') +
             '</div><button class="btn" type="button" data-copy="' + reg(sl.text) + '" data-what="текст">копия</button></div>';
         }).join('');
-        return '<article class="card"><div class="post-head"><span class="post-date">' + esc(st.title) + '</span>' +
-          '<span class="chip rubric">' + st.slides.length + ' ' + plural(st.slides.length, 'сторис', 'сторис', 'сторис') + '</span></div>' +
+        var stToday = st.date === today0;
+        return '<article class="card' + (stToday ? ' next' : '') + '"><div class="post-head"><span class="post-date">' +
+          (st.date ? dateShort(st.date) + ' · ' : '') + esc(st.title) + '</span>' +
+          '<span class="chip rubric">' + st.slides.length + ' ' + plural(st.slides.length, 'сторис', 'сторис', 'сторис') + '</span>' +
+          (stToday ? '<span class="chip next-badge">сегодня</span>' : '') + '</div>' +
           '<div class="story-when">' + esc(st.when) + '</div><div class="slides">' + slides + '</div></article>';
       }).join('');
-      return '<div class="section-title">Telegram</div>' + seg + '<div class="list">' + (body || '<div class="empty">Сторис пока нет</div>') + '</div>' + soon();
+      return '<div class="section-title">Telegram</div>' + seg +
+        (TG.storiesNote ? '<div class="note">' + marks(TG.storiesNote) + '</div>' : '') +
+        pastBtn(pastSt) + '<div class="list">' + (body || '<div class="empty">Сторис пока нет</div>') + '</div>' + soon();
     }
 
     var ch = channels.filter(function (c) { return c.key === ui.tgSeg; })[0];
     var today = calendarToday();
-    body = (ch.posts || []).map(function (p) {
+    var pastP = (ch.posts || []).filter(function (p) { return p.date && p.date < today; }).length;
+    body = (ch.posts || []).filter(visible).map(function (p) {
       var isToday = p.date === today;
       var head = p.date
         ? '<span class="post-date">' + dateShort(p.date) + (p.time ? ' <small>· ' + esc(p.time) + ' мск</small>' : '') + '</span>'
@@ -393,19 +422,34 @@
     }).join('');
 
     return '<div class="section-title">Telegram · <span class="hint">t.me/' + esc(ch.handle) + '</span></div>' + seg +
-      (TG.note ? '<div class="note">' + marks(TG.note) + '</div>' : '') +
-      '<div class="list">' + (body || '<div class="empty">Постов пока нет</div>') + '</div>' + soon();
+      (TG.note && ch.key === 'osnova' ? '<div class="note">' + marks(TG.note) + '</div>' : '') +
+      (ch.key === 'lichnoe' ? '<div class="note">Идеи на всякий случай. Ведёшь сам, бери что нравится.</div>' : '') +
+      pastBtn(pastP) + '<div class="list">' + (body || '<div class="empty">Постов пока нет</div>') + '</div>' + soon();
   }
 
   // ---------- задачи ----------
   // details в tasks.json — HTML, который пишу я сам (data/app/tasks.json), поэтому вставляется как есть
+  function taskForm(t) {
+    var isNew = !t;
+    t = t || { id: 'new', section: 'today', title: '', sub: '' };
+    return '<article class="card task task-form k-' + esc(t.section) + '" data-tform="' + esc(t.id) + '">' +
+      '<input class="tf-title" type="text" placeholder="что сделать" value="' + esc(t.title) + '" aria-label="название задачи">' +
+      '<textarea class="tf-sub" rows="3" placeholder="подробности (можно пусто)" aria-label="подробности">' + esc(t.sub || '') + '</textarea>' +
+      '<select class="tf-sec" aria-label="раздел">' + (TASKS.sections || []).map(function (s) {
+        return '<option value="' + esc(s.id) + '"' + (s.id === t.section ? ' selected' : '') + '>' + esc(s.title) + '</option>';
+      }).join('') + '</select>' +
+      '<div class="actions"><button class="btn primary" type="button" data-tsave="' + esc(t.id) + '">сохранить</button>' +
+      '<button class="btn" type="button" data-tcancel="1">отмена</button>' +
+      (isNew ? '' : '<button class="btn toggle" type="button" data-tdel="' + esc(t.id) + '" aria-label="удалить задачу">🗑</button>') +
+      '</div></article>';
+  }
   function renderTasks() {
-    var all = TASKS.tasks || [];
-    if (!all.length) return '<div class="section-title">Задачи</div><div class="empty">Задач пока нет</div>';
+    var all = allTasks();
     var done = all.filter(function (t) { return tdone[t.id]; }).length;
     var head = '<div class="section-title">Задачи</div>' +
       '<div class="t-progress"><div class="goal-row"><span>сделано</span><span><b>' + done + '</b> из ' + all.length + '</span></div>' +
-      '<div class="bar"><i style="width:' + (done / all.length * 100).toFixed(1) + '%"></i></div></div>' +
+      '<div class="bar"><i style="width:' + (all.length ? done / all.length * 100 : 0).toFixed(1) + '%"></i></div></div>' +
+      (ui.editTask === 'new' ? taskForm(null) : '<button class="btn wide add-task" type="button" data-tnew="1">+ своя задача</button>') +
       '<div class="chips filters">' + (TASKS.sections || []).map(function (s) {
         return '<a class="fchip" href="#t-' + s.id + '" data-jump="t-' + s.id + '">' + esc(s.title.toLowerCase()) + '</a>';
       }).join('') + '</div>';
@@ -417,11 +461,13 @@
         '<div class="t-sec-head"><h2>' + esc(s.title) + '</h2><span class="hint">' + (left ? 'осталось ' + left : 'всё сделано') + '</span></div>' +
         (s.note ? '<div class="hint t-note">' + esc(s.note) + '</div>' : '') +
         '<div class="list">' + list.map(function (t) {
+          if (ui.editTask === t.id) return taskForm(t);
           var on = !!tdone[t.id];
           return '<article class="card task k-' + s.id + (on ? ' done' : '') + '">' +
-            '<label class="task-row"><input type="checkbox" class="task-check" data-task="' + esc(t.id) + '"' + (on ? ' checked' : '') +
+            '<div class="task-row"><input type="checkbox" class="task-check" id="tc-' + esc(t.id) + '" data-task="' + esc(t.id) + '"' + (on ? ' checked' : '') +
             ' aria-label="' + (s.id === 'look' ? 'прочитано' : 'сделано') + '">' +
-            '<span class="task-title">' + esc(t.title) + '</span></label>' +
+            '<label class="task-title" for="tc-' + esc(t.id) + '">' + esc(t.title) + '</label>' +
+            '<button class="task-edit" type="button" data-tedit="' + esc(t.id) + '" aria-label="изменить задачу">✎</button></div>' +
             (t.sub ? '<div class="task-sub">' + esc(t.sub) + '</div>' : '') +
             ((t.chips || []).length ? '<div class="task-chips">' + t.chips.map(function (c, i) {
               return '<span class="chip' + (i ? '' : ' k') + '">' + esc(c) + '</span>';
@@ -554,8 +600,11 @@
   }
 
   document.addEventListener('click', function (e) {
-    var t = e.target.closest('[data-tab],[data-copy],[data-mark],[data-day],[data-filter],[data-mood],[data-hideused],[data-seg],[data-author],[data-back],[data-jump]');
+    var t = e.target.closest('[data-tab],[data-copy],[data-mark],[data-day],[data-filter],[data-mood],[data-hideused],[data-seg],[data-author],[data-back],[data-jump],[data-showpast],' +
+      '[data-tedit],[data-tnew],[data-tsave],[data-tcancel],[data-tdel]');
     if (!t) return;
+
+    if (t.matches('[data-tedit],[data-tnew],[data-tsave],[data-tcancel],[data-tdel]')) { taskAction(t); return; }
 
     if (t.hasAttribute('data-author')) { ui.author = t.getAttribute('data-author'); render(); window.scrollTo(0, 0); return; }
     if (t.hasAttribute('data-back')) { ui.author = null; render(); window.scrollTo(0, 0); return; }
@@ -613,7 +662,47 @@
     if (t.hasAttribute('data-mood')) { ui.adMood = t.getAttribute('data-mood'); store.adMood = ui.adMood; save(); render(); return; }
     if (t.hasAttribute('data-hideused')) { ui.hideUsed = !ui.hideUsed; store.hideUsed = ui.hideUsed; save(); render(); return; }
     if (t.hasAttribute('data-seg')) { ui.tgSeg = t.getAttribute('data-seg'); store.tgSeg = ui.tgSeg; save(); render(); return; }
+    if (t.hasAttribute('data-showpast')) { ui.showPast = !ui.showPast; render(); return; }
   });
+
+  function taskAction(t) {
+    var y = window.pageYOffset;
+    if (t.hasAttribute('data-tedit')) ui.editTask = t.getAttribute('data-tedit');
+    else if (t.hasAttribute('data-tnew')) { ui.editTask = 'new'; y = 0; }
+    else if (t.hasAttribute('data-tcancel')) ui.editTask = null;
+    else if (t.hasAttribute('data-tsave')) {
+      var form = t.closest('[data-tform]');
+      var id = t.getAttribute('data-tsave');
+      var v = {
+        title: form.querySelector('.tf-title').value.trim(),
+        sub: form.querySelector('.tf-sub').value.trim(),
+        section: form.querySelector('.tf-sec').value
+      };
+      if (!v.title) { toast('напиши, что сделать'); return; }
+      var mine = tedit.added.filter(function (x) { return x.id === id; })[0];
+      if (id === 'new') tedit.added.push(Object.assign({ id: 'my-' + Date.now().toString(36), owner: 'dima', chips: ['моё'] }, v));
+      else if (mine) Object.assign(mine, v);
+      else tedit.edits[id] = v;
+      saveEdits();
+      ui.editTask = null;
+      toast('сохранено ✓');
+    } else if (t.hasAttribute('data-tdel')) {
+      var did = t.getAttribute('data-tdel');
+      if (!window.confirm('Удалить задачу?')) return;
+      var before = tedit.added.length;
+      tedit.added = tedit.added.filter(function (x) { return x.id !== did; });
+      if (tedit.added.length === before) tedit.removed[did] = Date.now();
+      delete tdone[did];
+      saveEdits();
+      saveTasks();
+      ui.editTask = null;
+      toast('удалено');
+    }
+    render();
+    window.scrollTo(0, y);
+    var f = document.querySelector('[data-tform] .tf-title');
+    if (f && (t.hasAttribute('data-tedit') || t.hasAttribute('data-tnew'))) f.focus();
+  }
 
   document.addEventListener('change', function (e) {
     var id = e.target.getAttribute && e.target.getAttribute('data-task');
