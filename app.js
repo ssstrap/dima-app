@@ -6,7 +6,10 @@
   var DAYS = D.tiktok || [];
   var ADS = D.ads || { items: [], moods: [] };
   var TG = D.tg || { channels: [], stories: [] };
+  var TASKS = D.tasks || { sections: [], tasks: [] };
+  var INSPO = D.inspo || { authors: [] };
   var TZ = META.tz || { label: 'Астана', offsetFromMsk: 2 };
+  var TABS = ['tasks', 'inspo', 'tiktok', 'ads', 'tg'];
 
   var SOUNDS = {
     'заботливый': ['🤍', 'тёплый, спокойный', '#ffb36b'],
@@ -31,9 +34,15 @@
   if (!store.done) store.done = {};
   if (!store.copied) store.copied = {};
   function save() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) { /* приватный режим */ } }
+  // галочки задач — тот же ключ, что у старой страницы zadachi.html, чтобы отметки не пропали
+  var TKEY = 'dimaTasks.v1';
+  var tdone = {};
+  try { tdone = JSON.parse(localStorage.getItem(TKEY)) || {}; } catch (e) { tdone = {}; }
+  function saveTasks() { try { localStorage.setItem(TKEY, JSON.stringify(tdone)); } catch (e) { /* приватный режим */ } }
 
   var ui = {
     tab: 'tiktok',
+    author: null,
     day: null,
     filter: 'все',
     adMood: store.adMood || 'все',
@@ -282,7 +291,7 @@
         (it.id === nextId ? '<span class="chip next-badge">следующий</span>' : '') + time + '</div>' +
         '<div class="screen" data-copy="' + reg(it.text) + '" data-item="' + it.id + '" data-what="текст">' + esc(it.text) + '</div>' +
         captionRow(it.caption, it.tags) +
-        soundRow(it.sound) +
+        soundRow(it.sound, 'музыка') +
         '<div class="actions">' +
         copyMain(it.text, it.id, 'текст', 'скопировать текст') +
         '<button class="btn" type="button" data-copy="' + reg(fullCaption(it.caption, it.tags)) + '" data-item="' + it.id + '" data-what="подпись">подпись</button>' +
@@ -292,7 +301,8 @@
         '</article>';
     }).join('');
 
-    return '<div class="days-wrap" id="daysWrap"><div class="days" id="days">' + chips + '</div></div>' +
+    return '<div class="section-title">Мои видео</div>' +
+      '<div class="days-wrap" id="daysWrap"><div class="days" id="days">' + chips + '</div></div>' +
       '<div class="day-head"><div><div class="day-title">' + dateLong(date) + '</div>' +
       '<div class="day-sub">' + day.items.length + ' ' + plural(day.items.length, 'текст', 'текста', 'текстов') + ' · бери 5–7 · с 18:00 до 6:00 мск, раз в 40 мин</div></div>' +
       '<div class="progress' + (doneCount >= 5 ? ' ok' : '') + '"><b>' + doneCount + '</b><span>выложено</span></div></div>' +
@@ -387,6 +397,108 @@
       '<div class="list">' + (body || '<div class="empty">Постов пока нет</div>') + '</div>' + soon();
   }
 
+  // ---------- задачи ----------
+  // details в tasks.json — HTML, который пишу я сам (data/app/tasks.json), поэтому вставляется как есть
+  function renderTasks() {
+    var all = TASKS.tasks || [];
+    if (!all.length) return '<div class="section-title">Задачи</div><div class="empty">Задач пока нет</div>';
+    var done = all.filter(function (t) { return tdone[t.id]; }).length;
+    var head = '<div class="section-title">Задачи</div>' +
+      '<div class="t-progress"><div class="goal-row"><span>сделано</span><span><b>' + done + '</b> из ' + all.length + '</span></div>' +
+      '<div class="bar"><i style="width:' + (done / all.length * 100).toFixed(1) + '%"></i></div></div>' +
+      '<div class="chips filters">' + (TASKS.sections || []).map(function (s) {
+        return '<a class="fchip" href="#t-' + s.id + '" data-jump="t-' + s.id + '">' + esc(s.title.toLowerCase()) + '</a>';
+      }).join('') + '</div>';
+    var body = (TASKS.sections || []).map(function (s) {
+      var list = all.filter(function (t) { return t.section === s.id; });
+      if (!list.length) return '';
+      var left = list.filter(function (t) { return !tdone[t.id]; }).length;
+      return '<section class="t-sec" id="t-' + s.id + '">' +
+        '<div class="t-sec-head"><h2>' + esc(s.title) + '</h2><span class="hint">' + (left ? 'осталось ' + left : 'всё сделано') + '</span></div>' +
+        (s.note ? '<div class="hint t-note">' + esc(s.note) + '</div>' : '') +
+        '<div class="list">' + list.map(function (t) {
+          var on = !!tdone[t.id];
+          return '<article class="card task k-' + s.id + (on ? ' done' : '') + '">' +
+            '<label class="task-row"><input type="checkbox" class="task-check" data-task="' + esc(t.id) + '"' + (on ? ' checked' : '') +
+            ' aria-label="' + (s.id === 'look' ? 'прочитано' : 'сделано') + '">' +
+            '<span class="task-title">' + esc(t.title) + '</span></label>' +
+            (t.sub ? '<div class="task-sub">' + esc(t.sub) + '</div>' : '') +
+            ((t.chips || []).length ? '<div class="task-chips">' + t.chips.map(function (c, i) {
+              return '<span class="chip' + (i ? '' : ' k') + '">' + esc(c) + '</span>';
+            }).join('') + '</div>' : '') +
+            (t.details ? '<details class="why"><summary>подробнее</summary><div class="more">' + t.details + '</div></details>' : '') +
+            '</article>';
+        }).join('') + '</div></section>';
+    }).join('');
+    return head + body;
+  }
+
+  // ---------- вдохновение ----------
+  function renderInspo() {
+    var authors = INSPO.authors || [];
+    var a = ui.author && authors.filter(function (x) { return x.handle === ui.author; })[0];
+    if (a) return renderAuthor(a);
+    ui.author = null;
+    var cards = authors.map(function (x) {
+      return '<button class="card author" type="button" data-author="' + esc(x.handle) + '">' +
+        '<span class="avatar">' + esc((x.handle[0] || '?').toUpperCase()) + '</span>' +
+        '<span class="author-body"><span class="author-name">@' + esc(x.handle) + '</span>' +
+        '<span class="hint">' + esc([x.name, x.followers && x.followers + ' подписчиков'].filter(Boolean).join(' · ')) + '</span>' +
+        (x.hook ? '<span class="author-hook">' + esc(x.hook) + '</span>' : '') +
+        '<span class="task-chips">' + (x.status ? '<span class="chip k">' + esc(x.status) + '</span>' : '') +
+        '<span class="chip">' + (x.texts || []).length + ' ' + plural((x.texts || []).length, 'текст', 'текста', 'текстов') + '</span></span>' +
+        '</span><span class="author-go" aria-hidden="true">›</span></button>';
+    }).join('');
+    return '<div class="section-title">Вдохновение</div>' +
+      (INSPO.note ? '<div class="note">' + esc(INSPO.note) + '</div>' : '') +
+      '<div class="list">' + (cards || '<div class="empty">Кинь мне автора — разберу</div>') + '</div>' +
+      '<div class="soon">новый автор: кинь ссылку или ник в чат</div>';
+  }
+  function renderAuthor(a) {
+    var kpis = (a.kpis || []).map(function (k) {
+      return '<div class="kpi"><b>' + esc(k[0]) + '</b><small>' + esc(k[1]) + (k[2] ? '<br>' + esc(k[2]) : '') + '</small></div>';
+    }).join('');
+    var cmp = (a.compare || []).length ? '<div class="tbl-wrap"><table><thead><tr><th></th><th>он</th><th>ты</th></tr></thead><tbody>' +
+      a.compare.map(function (r) { return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td><td>' + esc(r[2]) + '</td></tr>'; }).join('') +
+      '</tbody></table></div>' : '';
+    var top = (a.top || []).map(function (r) {
+      return '<li><div class="views">' + esc(r[0]) + '<small>' + esc(r[1]) + '</small></div><div><div class="q">' + esc(r[2]) + '</div>' +
+        '<div class="hint">' + esc(r[3]) + '</div></div></li>';
+    }).join('');
+    var col = function (cls, title, items) {
+      return (items || []).length ? '<div class="col ' + cls + '"><h4>' + title + '</h4><ul>' +
+        items.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>' : '';
+    };
+    var texts = (a.texts || []).map(function (it, i) {
+      var id = 'inspo-' + a.handle + '-' + (i + 1);
+      return '<article class="card' + (store.done[id] ? ' done' : '') + '" data-card="' + id + '">' +
+        '<div class="card-top"><span class="num">' + (i + 1) + '</span>' +
+        (it.theme ? '<span class="chip theme ' + themeClass(it.theme) + '">' + esc(it.theme.toLowerCase()) + '</span>' : '') + '</div>' +
+        '<div class="screen" data-copy="' + reg(it.text) + '" data-item="' + id + '" data-what="текст">' + esc(it.text) + '</div>' +
+        captionRow(it.caption, it.tags) + soundRow(it.sound, 'музыка') +
+        '<div class="actions">' + copyMain(it.text, id, 'текст', 'скопировать текст') +
+        '<button class="btn" type="button" data-copy="' + reg(fullCaption(it.caption, it.tags)) + '" data-item="' + id + '" data-what="подпись">подпись</button>' +
+        '<button class="btn toggle" type="button" data-mark="' + id + '" aria-pressed="' + !!store.done[id] + '" aria-label="выложил">✓</button></div>' +
+        (it.from ? '<details class="why"><summary>откуда приём</summary><p>' + esc(it.from) + '</p></details>' : '') +
+        '</article>';
+    }).join('');
+    return '<button class="back" type="button" data-back="1">‹ все авторы</button>' +
+      '<div class="author-head"><span class="avatar big">' + esc(a.handle[0].toUpperCase()) + '</span><div>' +
+      '<div class="section-title" style="margin:0">@' + esc(a.handle) + '</div>' +
+      '<div class="hint">' + esc([a.name, a.followers && a.followers + ' подписчиков', a.likes && a.likes + ' лайков'].filter(Boolean).join(' · ')) +
+      (a.url ? ' · <a href="' + esc(a.url) + '" target="_blank" rel="noopener">профиль</a>' : '') + '</div>' +
+      (a.videos ? '<div class="hint">' + esc(a.videos) + (a.date ? ' · разбор ' + dateShort(a.date) : '') + '</div>' : '') +
+      '</div></div>' +
+      (a.hook ? '<div class="note"><b>Главное:</b> ' + esc(a.hook) + '</div>' : '') +
+      (kpis ? '<div class="kpis">' + kpis + '</div>' : '') + cmp +
+      (a.who ? '<h3 class="sub-h">Кто он</h3><p class="hint para">' + esc(a.who) + '</p>' : '') +
+      (top ? '<h3 class="sub-h">Топ роликов и на чём держится</h3><ol class="top8">' + top + '</ol>' : '') +
+      (a.extra ? '<p class="hint para">' + esc(a.extra) + '</p>' : '') +
+      ((a.take || a.skip) ? '<div class="cols">' + col('yes', 'Берём', a.take) + col('no', 'Не берём', a.skip) + '</div>' : '') +
+      '<h3 class="sub-h">Мои тексты по нему</h3>' +
+      (texts ? '<div class="list">' + texts + '</div>' : '<div class="empty">' + esc(a.textsNote || 'Текстов пока нет') + '</div>');
+  }
+
   // ---------- рендер ----------
   var view = document.getElementById('view');
   function render() {
@@ -394,7 +506,8 @@
     copyN = 0;
     var daysEl = document.getElementById('days');
     var keepScroll = daysEl ? daysEl.scrollLeft : null;
-    var html = ui.tab === 'ads' ? renderAds() : ui.tab === 'tg' ? renderTg() : renderTiktok();
+    var html = ui.tab === 'ads' ? renderAds() : ui.tab === 'tg' ? renderTg() : ui.tab === 'tasks' ? renderTasks() :
+      ui.tab === 'inspo' ? renderInspo() : renderTiktok();
     view.innerHTML = html;
     document.querySelectorAll('.tab').forEach(function (b) {
       var on = b.getAttribute('data-tab') === ui.tab;
@@ -430,7 +543,8 @@
 
   // ---------- события ----------
   function setTab(tab) {
-    if (['tiktok', 'ads', 'tg'].indexOf(tab) < 0) tab = 'tiktok';
+    if (TABS.indexOf(tab) < 0) tab = 'tiktok';
+    if (tab !== 'inspo') ui.author = null;
     var changed = ui.tab !== tab;
     ui.tab = tab;
     store.tab = tab;
@@ -440,8 +554,18 @@
   }
 
   document.addEventListener('click', function (e) {
-    var t = e.target.closest('[data-tab],[data-copy],[data-mark],[data-day],[data-filter],[data-mood],[data-hideused],[data-seg]');
+    var t = e.target.closest('[data-tab],[data-copy],[data-mark],[data-day],[data-filter],[data-mood],[data-hideused],[data-seg],[data-author],[data-back],[data-jump]');
     if (!t) return;
+
+    if (t.hasAttribute('data-author')) { ui.author = t.getAttribute('data-author'); render(); window.scrollTo(0, 0); return; }
+    if (t.hasAttribute('data-back')) { ui.author = null; render(); window.scrollTo(0, 0); return; }
+    if (t.hasAttribute('data-jump')) {
+      // якорь без смены hash: hash у нас — это вкладка
+      e.preventDefault();
+      var sec = document.getElementById(t.getAttribute('data-jump'));
+      if (sec) window.scrollTo(0, sec.getBoundingClientRect().top + window.pageYOffset - 10);
+      return;
+    }
 
     if (t.hasAttribute('data-tab')) {
       var tab = t.getAttribute('data-tab');
@@ -489,6 +613,17 @@
     if (t.hasAttribute('data-mood')) { ui.adMood = t.getAttribute('data-mood'); store.adMood = ui.adMood; save(); render(); return; }
     if (t.hasAttribute('data-hideused')) { ui.hideUsed = !ui.hideUsed; store.hideUsed = ui.hideUsed; save(); render(); return; }
     if (t.hasAttribute('data-seg')) { ui.tgSeg = t.getAttribute('data-seg'); store.tgSeg = ui.tgSeg; save(); render(); return; }
+  });
+
+  document.addEventListener('change', function (e) {
+    var id = e.target.getAttribute && e.target.getAttribute('data-task');
+    if (!id) return;
+    if (e.target.checked) tdone[id] = Date.now(); else delete tdone[id];
+    saveTasks();
+    var y = window.pageYOffset;
+    render();
+    window.scrollTo(0, y);
+    if (e.target.checked) toast('готово ✓');
   });
 
   function markCopied(id) {
@@ -541,7 +676,7 @@
 
   renderHero();
   var initial = location.hash.slice(1) || store.tab || 'tiktok';
-  ui.tab = ['tiktok', 'ads', 'tg'].indexOf(initial) >= 0 ? initial : 'tiktok';
+  ui.tab = TABS.indexOf(initial) >= 0 ? initial : 'tiktok';
   render();
   lastSig = timeSig();
 })();
