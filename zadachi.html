@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0c0a12">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>Задачи Димы</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Unbounded:wght@600;700&display=swap">
+<style>
+/* одна колонка как в приложении «дима в курсе»: шапка с прогрессом, задачи карточками, разборы раскрываются */
+:root {
+  color-scheme: dark;
+  --bg: #0c0a12;
+  --card: #16121e;
+  --card2: #1f1929;
+  --line: rgba(255, 255, 255, .08);
+  --line2: rgba(255, 255, 255, .14);
+  --text: #f5f2fb;
+  --muted: #a49cb4;
+  --dim: #6f6880;
+  --pink: #ff4f9a;
+  --violet: #b25cff;
+  --grad: linear-gradient(120deg, #ff4f9a 0%, #b25cff 100%);
+  --today: #ff7b7b;
+  --decide: #ffd84d;
+  --look: #74b4ff;
+  --good: #66dba0;
+  --display: Unbounded, Manrope, system-ui, sans-serif;
+  --body: Manrope, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --radius: 18px;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body {
+  margin: 0;
+  background: var(--bg);
+  background-image:
+    radial-gradient(600px 380px at 85% -60px, rgba(178, 92, 255, .26), transparent 70%),
+    radial-gradient(520px 340px at -10% 40px, rgba(255, 79, 154, .2), transparent 70%);
+  background-repeat: no-repeat;
+  color: var(--text);
+  font: 500 15px/1.5 var(--body);
+}
+button { font: inherit; color: inherit; }
+a { color: var(--pink); }
+.wrap {
+  max-width: 600px; margin: 0 auto;
+  padding-block: 22px 60px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 26px;
+}
+
+/* шапка */
+.top { display: flex; flex-direction: column; gap: 14px; }
+.brand { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.logo { font: 700 24px/1.1 var(--display); letter-spacing: -.02em; }
+.logo span { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.date { color: var(--muted); font-size: 13px; }
+.lead { margin: 0; color: var(--muted); font-size: 14px; max-width: 60ch; }
+.progress { background: rgba(255, 255, 255, .04); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.progress-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 13px; color: var(--muted); }
+.progress-row b { font: 700 22px/1 var(--display); color: var(--text); font-variant-numeric: tabular-nums; }
+.bar { height: 6px; border-radius: 6px; background: rgba(255, 255, 255, .07); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--grad); border-radius: 6px; transition: width .3s; }
+.jump { display: flex; gap: 8px; flex-wrap: wrap; }
+.jump a { text-decoration: none; color: var(--text); font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line2); background: rgba(255, 255, 255, .03); }
+.jump a:focus-visible, .jump a:hover { border-color: var(--pink); }
+
+/* группы задач */
+section { display: flex; flex-direction: column; gap: 10px; }
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+h2 { font: 700 18px/1.2 var(--display); margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+.sec-count { color: var(--dim); font-size: 13px; font-variant-numeric: tabular-nums; }
+.sec-note { margin: -4px 0 2px; color: var(--muted); font-size: 13px; }
+
+.task { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); display: grid; grid-template-columns: auto 1fr; gap: 0 12px; padding: 14px 14px 14px 12px; position: relative; overflow: hidden; }
+.task::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 0 3px 3px 0; background: var(--kind, var(--violet)); }
+.task.today { --kind: var(--today); }
+.task.decide { --kind: var(--decide); }
+.task.look { --kind: var(--look); }
+.task.claude { --kind: var(--violet); }
+.check { appearance: none; -webkit-appearance: none; margin: 2px 0 0 4px; width: 24px; height: 24px; border-radius: 8px; border: 2px solid var(--line2); background: transparent; cursor: pointer; display: grid; place-content: center; flex: none; }
+.check::after { content: ""; width: 11px; height: 6px; border-left: 2.5px solid var(--bg); border-bottom: 2.5px solid var(--bg); transform: rotate(-45deg) translate(1px, -1px); opacity: 0; }
+.check:checked { background: var(--good); border-color: var(--good); }
+.check:checked::after { opacity: 1; }
+.check:focus-visible { outline: 2px solid var(--pink); outline-offset: 2px; }
+.task-body { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.task-title { font-weight: 700; font-size: 15.5px; line-height: 1.35; cursor: pointer; }
+.task-sub { color: var(--muted); font-size: 13.5px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { font-size: 11.5px; font-weight: 700; letter-spacing: .02em; padding: 3px 9px; border-radius: 999px; background: rgba(255, 255, 255, .06); color: var(--muted); }
+.chip.k { color: var(--kind); background: color-mix(in srgb, var(--kind) 14%, transparent); }
+.task.done { opacity: .55; }
+.task.done .task-title { text-decoration: line-through; text-decoration-color: var(--dim); }
+
+details { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 8px; }
+summary { cursor: pointer; color: var(--pink); font-weight: 700; font-size: 13px; list-style: none; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: " ↓"; }
+details[open] summary::after { content: " ↑"; }
+.more { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; font-size: 14px; }
+.more p { margin: 0; }
+.more ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12.5px; color: var(--muted); word-break: break-all; }
+
+/* таблицы */
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 600; font-size: 12px; }
+tr:last-child td { border-bottom: 0; }
+td.hl { color: var(--pink); font-weight: 800; }
+.ok { color: var(--good); font-weight: 700; }
+.warn { color: var(--decide); font-weight: 700; }
+
+/* вдохновение */
+.inspo { background: linear-gradient(135deg, rgba(255, 79, 154, .09), rgba(178, 92, 255, .09)); border: 1px solid var(--line2); border-radius: 22px; padding: 18px 16px; display: flex; flex-direction: column; gap: 16px; }
+.inspo h3 { font: 700 15px/1.3 var(--display); margin: 0; }
+.big { font: 700 26px/1.1 var(--display); letter-spacing: -.02em; }
+.big span { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.kpi { background: rgba(0, 0, 0, .22); border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.kpi b { font: 700 18px/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.kpi small { color: var(--muted); font-size: 11.5px; }
+.top8 { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.top8 li { display: grid; grid-template-columns: 64px 1fr; gap: 10px; align-items: start; }
+.views { font: 700 14px/1.2 var(--display); color: var(--pink); font-variant-numeric: tabular-nums; }
+.views small { display: block; font: 600 11px/1.3 var(--body); color: var(--dim); }
+.q { font-weight: 700; }
+.mech { color: var(--muted); font-size: 13.5px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.col { background: rgba(0, 0, 0, .22); border-radius: 14px; padding: 12px; font-size: 13.5px; min-width: 0; }
+.col h4 { margin: 0 0 6px; font-size: 13px; }
+.col ul { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }
+.col.yes h4 { color: var(--good); }
+.col.no h4 { color: var(--today); }
+
+.texts { display: flex; flex-direction: column; gap: 10px; }
+.tx { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.tx-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tx-slot { font: 700 13px/1 var(--display); font-variant-numeric: tabular-nums; }
+.tx pre { margin: 0; white-space: pre-wrap; font: 600 15px/1.45 var(--body); }
+.tx-cap { color: var(--muted); font-size: 13.5px; }
+.tx-cap b { color: var(--text); font-weight: 700; }
+.tx-from { color: var(--dim); font-size: 12.5px; }
+.btn { border: 0; border-radius: 12px; padding: 9px 14px; font-weight: 700; font-size: 13px; background: var(--grad); color: #fff; cursor: pointer; }
+.btn:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.btn.ghost { background: rgba(255, 255, 255, .07); color: var(--text); }
+
+.mine { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 14px; }
+.mine dt { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mine dd { margin: 0; }
+.foot { color: var(--dim); font-size: 12.5px; text-align: center; }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(20px); background: var(--card2); border: 1px solid var(--line2); padding: 10px 16px; border-radius: 12px; font-weight: 700; font-size: 13px; opacity: 0; pointer-events: none; transition: .2s; }
+.toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (max-width: 420px) {
+  .kpis { grid-template-columns: 1fr 1fr; }
+  .cols { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">дима <span>в курсе</span></div>
+      <div class="date">задачи · <span class="upd">1 ноября 2026</span></div>
+    </div>
+    <p class="lead">Всё, что ждёт тебя, в одном месте. Отмечай галочкой, когда сделал: галочки запоминаются на этом телефоне. Подробности спрятаны под «подробнее».</p>
+    <div class="progress">
+      <div class="progress-row"><span>сделано</span><b id="pCount">0 из 0</b></div>
+      <div class="bar"><i id="pBar"></i></div>
+    </div>
+    <nav class="jump" aria-label="Разделы">
+      <a href="index.html">← приложение</a>
+      <a href="#today">сегодня</a>
+      <a href="#decide">решить</a>
+      <a href="#claude">делаю я</a>
+      <a href="#look">посмотреть</a>
+      <a href="#inspo">вдохновение</a>
+      <a href="#mine">что делаю я</a>
+    </nav>
+  </header>
+
+<!--TASKS-->
+  <section id="today">
+    <div class="sec-head"><h2>Сегодня</h2><span class="sec-count" data-count="today"></span></div>
+
+    <article class="task today" data-id="olds-1101">
+      <input class="check" type="checkbox" id="c-olds-1101" aria-label="Сделано">
+      <div class="task-body">
+        <label class="task-title" for="c-olds-1101">Подарить сигны олдам недели</label>
+        <div class="task-sub">Вечером в TG. Я отобрал троих по комментам за 26 октября – 1 ноября.</div>
+        <div class="chips"><span class="chip k">сегодня вечером</span><span class="chip">Telegram</span></div>
+        <details>
+          <summary>подробнее</summary>
+          <div class="more"><ul><li><b>пожиратель планет</b> @meowqq_meowq — 411 комментов, писала 5 дней из 7, ты ответил ей 16 раз</li><li><b>грiнка</b> @alwaysmissyoufff — 399 комментов, вокруг неё собирается разговор (71 ответ)</li><li><b>аспирин</b> @asp1r9x — была под каждым постом недели</li></ul><p>Запасные: влада @mxerrr (самые тёплые слова про тебя), ʙᴀᴛᴀᴋᴀᴛᴀ @owerfri (длинная история), софия павловна @gvmblwjb — пишет 10 недель подряд. Если «олд» для тебя значит «давно со мной», бери её вместо аспирин.</p></div>
+        </details>
+      </div>
+    </article>
+
+    <article class="task today" data-id="pick-1102">
+      <input class="check" type="checkbox" id="c-pick-1102" aria-label="Сделано">
+      <div class="task-body">
+        <label class="task-title" for="c-pick-1102">Выбрать 5–7 роликов на 2 ноября</label>
+        <div class="task-sub">10 текстов уже в приложении, вкладка TikTok. Время и звук стоят у каждого.</div>
+        <div class="chips"><span class="chip k">до вечера</span><span class="chip">TikTok</span></div>
+        <details>
+          <summary>подробнее</summary>
+          <div class="more"><p>Больше 7 в день не ставь: при 8+ медиана дня падает вдвое. Между роликами минимум 40 минут. Самые сильные тексты — с 21:00 до 01:30 по Москве.</p></div>
+        </details>
+      </div>
+    </article>
+
+    <article class="task today" data-id="deploy-1101">
+      <input class="check" type="checkbox" id="c-deploy-1101" aria-label="Сделано">
+      <div class="task-body">
+        <label class="task-title" for="c-deploy-1101">Выложить сайт с телефона</label>
+        <div class="task-sub">Сайта в сети ещё нет: ссылка появится, когда выложишь. Минут 10, всё с телефона.</div>
+        <div class="chips"><span class="chip k">сегодня</span><span class="chip">сайт</span></div>
+        <details>
+          <summary>подробнее</summary>
+          <div class="more"><ul><li>С компа отправь себе в Telegram «Избранное» архив <span class="mono">Desktop\kurs\dima-app.zip</span>. На телефоне сохрани его в «Файлы» и распакуй (на iPhone — нажать на архив).</li><li>Открой github.com в браузере телефона и войди. Нажми <b>+</b> → <b>New repository</b>, имя <b>dima-app</b>, <b>Public</b>, <b>Create repository</b>.</li><li>Нажми <b>uploading an existing file</b> и выбери <b>все файлы</b> из распакованной папки, не саму папку. Внизу <b>Commit changes</b>.</li><li><b>Settings</b> → <b>Pages</b> → Source: <b>Deploy from a branch</b>, ветка <b>main</b>, папка <b>/ (root)</b> → <b>Save</b>.</li><li>Через 1–2 минуты появится ссылка <span class="mono">https://твой-ник.github.io/dima-app/</span>. Скинь её мне: запишу и буду давать прямо на нужную вкладку.</li><li>Открой ссылку → «Поделиться» → «На экран „Домой“». Будет как приложение.</li></ul><p>Если GitHub в телефоне неудобный (меню мелкое), включи в браузере «версия для ПК».</p></div>
+        </details>
+      </div>
+    </article>
+  </section>
+
+  <section id="decide">
+    <div class="sec-head"><h2>Решить</h2><span class="sec-count" data-count="decide"></span></div>
+    <p class="sec-note">Мне нужен твой ответ. Можно одним словом в чат.</p>
+
+    <article class="task decide" data-id="pick-1103">
+      <input class="check" type="checkbox" id="c-pick-1103" aria-label="Сделано">
+      <div class="task-body">
+        <label class="task-title" for="c-pick-1103">Выбрать тексты на 3 и 4 ноября</label>
+        <div class="task-sub">В каждом дне 10 обычных текстов. Тексты по итнедарку из приложения убрал: тебе они не зашли, переделываю.</div>
+        <div class="chips"><span class="chip k">до 3 ноября</span><span class="chip">TikTok</span></div>
+        
+      </div>
+    </article>
+
+    <article class="task decide" data-id="inspo-why">
+      <input class="check" type="checkbox" id="c-inspo-why" aria-label="Сделано">
+      <div class="task-body">
+        <label class="task-title" for="c-inspo-why">Что не так с текстами по итнедарку?</label>
+        <div class="task-sub">Одной фразой: длинные, не те темы, не твой голос, слишком похоже на него? Без этого переделаю вслепую.</div>
+        <div class="chips"><span class="chip k">одной фразой</span><span class="chip">вдохновение</span></div>
+        
+      </div>
+    </article>
+
+    <article class="task decide" data-id="plan-review">
+      <input class="check" type="checkbox" id="c-plan-review" aria-label="Сделано">
+      <div class="task-body">
+        <label class="task-title" for="c-plan-review">Пересмотреть план развития и дописать своё</label>
+        <div class="task-sub">Ты хотел внести многое. Как допишешь, переделаю план целиком.</div>
+        <div class="chips"><span class="chip k">когда будет час</span><span class="chip">план</span></div>
+        <details>
+          <summary>подробнее</summary>
+          <div class="more"><p>План: <span class="mono">Desktop\kurs\plan-razvitiya.md</span>, по неделям ноября — <span class="mono">Desktop\kurs\отчёты\паспорт-и-план.html</span>. Можно надиктовать голосом прямо в чат, я разложу по местам.</p><p>Уже поправил: сентябрьский всплеск в TG дал репост подруги, а не TikTok. Поэтому «растить TG отсылками из роликов» из плана убрал. Вместо этого там репосты и взаимки с другими ТГК.</p></div>
+        </details>
+      </div>
+    </article>
+
+    <article class="task decide" data-id="supabase-setup">
+      <input class="check" type="checkbox" id="c-supabase-setup" aria-label="Сделано">
+      <div class="task-body">
+        <label class="task-title" for="c-supabase-setup">Завести базу в Supabase</label>
+        <div class="task-sub">Таблицы задач и роликов я подготовил. Тебе: создать проект и запустить три SQL-файла.</div>
+        <div class="chips"><span class="chip k">когда будешь за компом</span><span class="chip">сайт</span></div>
+        <details>
+          <summary>подробнее</summary>
+          <div class="more"><ul><li>supabase.com → <b>New project</b> (бесплатный план), регион Frankfurt.</li><li>Слева <b>SQL Editor</b> → вставить и запустить по очереди: <span class="mono">kurs\supabase\schema.sql</span>, потом <span class="mono">seed_tasks.sql</span> и <span class="mono">seed_videos.sql</span>.</li><li><b>Authentication → Sign In / Providers</b>: выключи «Allow new users to sign up», а себя добавь вручную в <b>Users</b>. Иначе любой с сайта сможет читать и менять твои задачи.</li><li>URL проекта и <b>anon</b>-ключ вставь в сайт сам. Этот ключ можно держать в коде сайта, а <b>service_role</b> никуда не вставляй и никому не кидай.</li></ul><p>Подробно: <span class="mono">kurs\supabase\README.md</span>.</p></div>
+        </details>
+      </div>
+    </article>
+
+    <article class="task decide" data-id="tg-name">
+      <input class="check" type="checkbox" id="c-tg-name" aria-label="Сделано">
+      <div class="task-body">
+        <label class="task-title" for="c-tg-name">Писать TG в имени профиля, как итнедарк?</label>
+        <div class="task-sub">У него имя в TikTok «ТГК ИТНЕДАРК», поэтому канал видит каждый зритель. Ещё он упоминает TG в каждой третьей подписи.</div>
+        <div class="chips"><span class="chip k">да / нет</span><span class="chip">Telegram</span></div>
+        <details>
+          <summary>подробнее</summary>
+          <div class="more"><p>Вариант: имя «дима в курсе | тгк» и 1–2 подписи в неделю со ссылкой на канал. Сейчас в основе 1490 человек, пост видят около 40%.</p><p>Честно: подписи «о ней в тгк» в сентябре людей почти не привели, всплеск дал репост подруги. Так что это проверка, приходят ли люди из TikTok вообще. Риск маленький: имя можно вернуть за минуту.</p></div>
+        </details>
+      </div>
+    </article>
+
+    <article class="task decide" data-id="autorun">
+      <input class="check" type="checkbox" id="c-autorun" aria-label="Сделано">
+      <div class="task-body">
+        <label class="task-title" for="c-autorun">Разрешить мне автозапуски</label>
+        <div class="task-sub">Сейчас сами работают только комменты (каждый день) и TG (по воскресеньям). Остальные четыре ждут твоего «да».</div>
+        <div class="chips"><span class="chip k">да / нет</span><span class="chip">система</span></div>
+        <details>
+          <summary>подробнее</summary>
+          <div class="more"><ul><li>Разбор вчерашних роликов через 12 часов — каждый день в 15:30 по Астане</li><li>Новая пачка текстов на 2 дня — каждый день в 17:15</li><li>Тренды в нише — по субботам в 13:00</li><li>Итог недели против целей ноября — по понедельникам в 17:30</li></ul><p>С ними тебе не придётся меня просить: заходишь, а всё уже лежит в приложении.</p></div>
+        </details>
+      </div>
+    </article>
+
+    <article class="task decide" data-id="taboo">
+      <input class="check" type="checkbox" id="c-taboo" aria-label="Сделано">
+      <div class="task-body">
+        <label class="task-title" for="c-taboo">Назвать запретные темы</label>
+        <div class="task-sub">О чём никогда не писать в текстах. Ты обещал сказать позже, а я пока угадываю.</div>
+        <div class="chips"><span class="chip k">когда будет минута</span></div>
+        
+      </div>
+    </article>
+
+    <article class="task decide" data-id="tg-later">
+      <input class="check" type="checkbox" id="c-tg-later" aria-label="Сделано">
+      <div class="task-body">
+        <label class="task-title" for="c-tg-later">Дать отмашку на две задачи по TG</label>
+        <div class="task-sub">Отложены по твоей просьбе. Начну, когда скажешь.</div>
+        <div class="chips"><span class="chip k">не срочно</span><span class="chip">Telegram</span></div>
+        <details>
+          <summary>подробнее</summary>
+          <div class="more"><ul><li><b>Методика олдов:</b> что считать (комменты, ответы, реакции, сколько дней подряд) и как из этого выбирать.</li><li><b>Посты канала:</b> смысл каждой рубрики, подача и структура, чтобы просмотры перестали падать.</li></ul></div>
+        </details>
+      </div>
+    </article>
+  </section>
+
+  <section id="claude">
+    <div class="sec-head"><h2>Делаю я</h2><span class="sec-count" data-count="claude"></span></div>
+    <p class="sec-note">Мои задачи. Отмечу, когда сделаю, тебе ничего делать не надо.</p>
+
+    <article class="task claude" data-id="persona">
+      <input class="check" type="checkbox" id="c-persona" aria-label="Сделано">
+      <div class="task-body">
+        <label class="task-title" for="c-persona">План «уход на личность» под твою музыку</label>
+        <div class="task-sub">Сейчас о тебе пишут 12 комментов из 638. Цель: к 200K тебя знают в лицо, и любовный трек звуком под роликами про бывшего заходит как «трек Димы».</div>
+        <div class="chips"><span class="chip k">в работе</span><span class="chip">личность</span></div>
+        <details>
+          <summary>подробнее</summary>
+          <div class="more"><ul><li>В каждом разборе комментов считаю долю «о Диме» и слежу, растёт ли она.</li><li>Подберу форматы, где ты в кадре без речи: реакция лицом, «когда…:», ответы видео на комменты о тебе.</li><li>Четверг «про меня» в TG — лучший день по реакциям. Посмотрю, что из него можно перенести в TikTok.</li><li>Распишу, как готовить запуск трека до 200K: когда и на каких роликах тестировать твой звук.</li></ul></div>
+        </details>
+      </div>
+    </article>
+
+    <article class="task claude" data-id="inspo-redo">
+      <input class="check" type="checkbox" id="c-inspo-redo" aria-label="Сделано">
+      <div class="task-body">
+        <label class="task-title" for="c-inspo-redo">Переделать тексты по @itnedarkxd</label>
+        <div class="task-sub">Старые 8 убрал из приложения. Начну, как скажешь, что в них не так.</div>
+        <div class="chips"><span class="chip k">жду тебя</span><span class="chip">вдохновение</span></div>
+        
+      </div>
+    </article>
+
+    <article class="task claude" data-id="v-ushi">
+      <input class="check" type="checkbox" id="c-v-ushi" aria-label="Сделано">
+      <div class="task-body">
+        <label class="task-title" for="c-v-ushi">Доработать скилл «в уши»</label>
+        <div class="task-sub">Пересказ для прослушивания с телефона и голосовой ввод. Скажи, что неудобно, когда будет минута.</div>
+        <div class="chips"><span class="chip k">в очереди</span><span class="chip">скиллы</span></div>
+        
+      </div>
+    </article>
+
+    <article class="task claude" data-id="plan-redo">
+      <input class="check" type="checkbox" id="c-plan-redo" aria-label="Сделано">
+      <div class="task-body">
+        <label class="task-title" for="c-plan-redo">Переделать план развития после твоих правок</label>
+        <div class="task-sub">После того как ты его пересмотришь.</div>
+        <div class="chips"><span class="chip k">жду тебя</span><span class="chip">план</span></div>
+        
+      </div>
+    </article>
+
+    <article class="task claude" data-id="app-db">
+      <input class="check" type="checkbox" id="c-app-db" aria-label="Сделано">
+      <div class="task-body">
+        <label class="task-title" for="c-app-db">Подключить задачи и ролики к твоему сайту на Supabase</label>
+        <div class="task-sub">Таблицы и данные лежат в kurs/supabase. Когда сайт заработает, сделаю так, чтобы новые пачки и задачи попадали туда сами.</div>
+        <div class="chips"><span class="chip k">после базы</span><span class="chip">сайт</span></div>
+        
+      </div>
+    </article>
+  </section>
+
+  <section id="look">
+    <div class="sec-head"><h2>Посмотреть</h2><span class="sec-count" data-count="look"></span></div>
+    <p class="sec-note">Когда будет время. Главное уже здесь, полные отчёты лежат на компе.</p>
+
+    <article class="task look" data-id="tg-short">
+      <input class="check" type="checkbox" id="c-tg-short" aria-label="Прочитано">
+      <div class="task-body">
+        <label class="task-title" for="c-tg-short">Короткий отчёт по Telegram</label>
+        <div class="task-sub">Текстом, чтобы поправить в другом чате. Ошибку про сентябрь и сходку исправил.</div>
+        <div class="chips"><span class="chip k">2 минуты</span><span class="chip">Telegram</span></div>
+        <details>
+          <summary>подробнее</summary>
+          <div class="more"><p>Файл: <span class="mono">Desktop\kurs\заметки\телеграм-коротко-2026-10-26.txt</span></p><ul><li>Расписание оживило канал: 1236 комментов от 99 человек, раньше 60–190 в неделю.</li><li>810 из них написали двое, пожиратель планет и грiнка. Без них всё равно в 2+ раза больше обычного.</li><li>Пост видят 600–800 человек, около 40%. Сентябрь не ориентир: всплеск дал репост подруги перед сходкой.</li><li>Лучший день — четверг «про меня» (168 реакций), самый тихий — вторник «разбор».</li><li>Разговор держишь ты: 324 ответа за неделю.</li><li>Личный канал проседает: постов в октябре 26 против 63 в августе.</li></ul></div>
+        </details>
+      </div>
+    </article>
+
+    <article class="task look" data-id="texts-0203">
+      <input class="check" type="checkbox" id="c-texts-0203" aria-label="Прочитано">
+      <div class="task-body">
+        <label class="task-title" for="c-texts-0203">Посмотреть первую пачку на 2–3 ноября</label>
+        <div class="task-sub">Она же в приложении на 2 ноября. Просто глянуть, что нравится, что нет.</div>
+        <div class="chips"><span class="chip k">когда будет время</span><span class="chip">TikTok</span></div>
+        
+      </div>
+    </article>
+
+    <article class="task look" data-id="week-1026">
+      <input class="check" type="checkbox" id="c-week-1026" aria-label="Прочитано">
+      <div class="task-body">
+        <label class="task-title" for="c-week-1026">Итог недели 26 октября – 1 ноября</label>
+        <div class="task-sub">Цель по подписчикам в день уже взята: 1454 при цели 1400.</div>
+        <div class="chips"><span class="chip k">2 минуты</span><span class="chip">цифры</span></div>
+        <details>
+          <summary>подробнее</summary>
+          <div class="more"><div class="tbl-wrap"><table><thead><tr><th>что</th><th>неделя</th><th>октябрь</th><th>цель</th></tr></thead><tbody><tr><td>подписчиков в день</td><td class="ok">1 454</td><td>1 125</td><td>1 400</td></tr><tr><td>подписок на 100K</td><td>94</td><td>79</td><td>100</td></tr><tr><td>медиана просмотров</td><td class="warn">102K</td><td>106K</td><td>130K</td></tr><tr><td>ролики от 100K</td><td class="warn">50%</td><td>51%</td><td>60%</td></tr><tr><td>ролики от 500K</td><td class="ok">8</td><td>3.3</td><td>4.5</td></tr><tr><td>лучший ролик, лайков</td><td>224K</td><td>—</td><td>300K</td></tr></tbody></table></div><p>Лучший день — 30 октября, +2080. Лучший ролик недели: «не меняйся. таких как ты очень ждут», 1M просмотров и 224K лайков.</p></div>
+        </details>
+      </div>
+    </article>
+
+    <article class="task look" data-id="review-1101">
+      <input class="check" type="checkbox" id="c-review-1101" aria-label="Прочитано">
+      <div class="task-body">
+        <label class="task-title" for="c-review-1101">Что зашло 28–31 октября</label>
+        <div class="task-sub">Бывший после расставания сейчас подписывает лучше всего. Семья даёт охват, но подписок в 3–4 раза меньше.</div>
+        <div class="chips"><span class="chip k">1 минута</span><span class="chip">TikTok</span></div>
+        <details>
+          <summary>подробнее</summary>
+          <div class="more"><ul><li>Бывший: 180 подписок на 100K за 12 часов. «вы не виделись два года» дал 549 подписок. Ставлю 2–3 таких текста в день.</li><li>Семья, детство, школа: охват 150–340K, но 37–50 подписок на 100K. Не больше 1–2 в день.</li><li>Ролики в 21–24 по Москве: 180 подписок на 100K, в 18–21 — 74.</li><li>31 октября 7 роликов вышли за 2 минуты, трое набрали по 5–7 подписок. Разносить хотя бы на 40 минут.</li></ul></div>
+        </details>
+      </div>
+    </article>
+  </section>
+<!--/TASKS-->
+
+  <!-- ВДОХНОВЕНИЕ -->
+  <section id="inspo">
+    <div class="sec-head"><h2>Вдохновение</h2></div>
+    <div class="inspo">
+      <div>
+        <div class="big"><span>@itnedarkxd</span></div>
+        <div class="task-sub">«ТГК ИТНЕДАРК» · 122K подписчиков · 36.5M лайков · <a href="https://www.tiktok.com/@itnedarkxd" target="_blank" rel="noopener">профиль</a></div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi"><b>140K</b><small>медиана просмотров (у тебя 127K)</small></div>
+        <div class="kpi"><b>19%</b><small>лайков на просмотр (у тебя 17%)</small></div>
+        <div class="kpi"><b>1.34%</b><small>репостов (у тебя 0.23%)</small></div>
+      </div>
+
+      <p style="margin:0"><b>Главное:</b> по цифрам вы почти одинаковые, но его пересылают в 6 раз чаще. Его ролики скидывают другу со словами «это ты». Пересылка — то, чего нам не хватает.</p>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th></th><th>он</th><th>ты</th></tr></thead>
+          <tbody>
+            <tr><td>роликов в день</td><td>4</td><td>5–10</td></tr>
+            <tr><td>длина</td><td>8 с</td><td>8 с</td></tr>
+            <tr><td>сохранения</td><td>0.91%</td><td>0.91%</td></tr>
+            <tr><td>репосты</td><td class="hl">1.34%</td><td>0.23%</td></tr>
+            <tr><td>текст на экране</td><td>~70 знаков, 1–3 строки</td><td>120–250, 7–10 строк</td></tr>
+            <tr><td>лучшие часы, МСК</td><td>19–21</td><td>21–01</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Кто он</h3>
+      <p style="margin:0" class="mech">Парень с самоиронией о себе: друзья, родители, кола зеро, «аура», бывшие. Короткая подпись на экране, а шутка в кадре (поза, реакция). Под хитами пишут «как же жизненно», свои истории и про него самого: «ты крутой», «хочу такой же пиджак». Канал рекламирует везде: имя профиля, подписи, ролики про похудение на 40 кг и свой бренд пальто.</p>
+
+      <h3>Топ-8 и на чём держится</h3>
+      <ol class="top8">
+        <li><div class="views">2.4M<small>×17</small></div><div><div class="q">«когда разговор настолько серьёзный что ты решаешь встать посреди улицы»</div><div class="mech">Узнаваемая реакция тела. Топ-коммент «поставить музыку на паузу» (84K лайков): люди дописывают свой вариант.</div></div></li>
+        <li><div class="views">2.3M<small>×16</small></div><div><div class="q">«когда был в крутом путешествии но тебя фоткали родители»</div><div class="mech">Ожидание против реальности. В комментах «фоткала мама», «папа фоткал».</div></div></li>
+        <li><div class="views">1.9M<small>×14</small></div><div><div class="q">сообщение от мамы: «что сегодня ел на завтрак?»</div><div class="mech">Первая строка — чужая реплика, ответ показан в кадре. 5.6% репостов.</div></div></li>
+        <li><div class="views">1.3M<small>×9</small></div><div><div class="q">«вещь в которой мне нет равных:»</div><div class="mech">Хвастовство с подвохом, держится на видео. Не берём.</div></div></li>
+        <li><div class="views">1.2M<small>×9</small></div><div><div class="q">«я туда не пойду меня там недолюбливают» / я когда узнал что меня где-то ненавидят:</div><div class="mech">«Обычные люди против меня», аура. Берём страх быть нежеланной.</div></div></li>
+        <li><div class="views">1.1M<small>×8</small></div><div><div class="q">«да нет там твоей колы зеро, я же смотрел»</div><div class="mech">Реплика, которую узнают все. Шутка о нём самом.</div></div></li>
+        <li><div class="views">1.0M<small>×7</small></div><div><div class="q">«у тебя осталось что-то на карте?» / да, фамилия и имя</div><div class="mech">Вопрос и сухой ответ с двойным смыслом. Панч его, не берём.</div></div></li>
+        <li><div class="views">1.0M<small>×7</small></div><div><div class="q">«люди которые не лайкают мои истории / вам че нравится ваще»</div><div class="mech">Наезд на зрителя ради ауры. Тебе не подходит.</div></div></li>
+      </ol>
+      <p style="margin:0" class="mech">Ещё сильные: «ты заслуживаешь всего лучшего поэтому у тебя есть я» — 13% репостов (его скидывают своему парню). «у всех нормальные стабильные отношения / что происходит в моей личной жизни:» — 6% репостов. «вы не особенные, просто у меня проблемы с головой» — лучшие сохранения, 2.5%.</p>
+
+      <div class="cols">
+        <div class="col yes">
+          <h4>Берём</h4>
+          <ul>
+            <li>Первая строка — реакция тела или чужая реплика в «ёлочках»</li>
+            <li>«у всех так, а у тебя» — сравнение с подругами</li>
+            <li>Финал, который захочется скинуть своему парню</li>
+            <li>Запах, песня или вещь, которые напоминают о бывшем</li>
+          </ul>
+        </div>
+        <div class="col no">
+          <h4>Не берём</h4>
+          <ul>
+            <li>Шутки, которые держатся на кадре</li>
+            <li>Советы и лайфхаки</li>
+            <li>Мужское «я» и наезд на зрителя</li>
+            <li>Его панчи: узнают сразу</li>
+          </ul>
+        </div>
+      </div>
+
+      <p style="margin:0" class="mech">8 текстов по нему тебе не зашли. Я их убрал и переделаю, как скажешь, что было не так.</p>
+      <div class="texts" id="texts"></div>
+    </div>
+  </section>
+
+  <!-- ЧТО ДЕЛАЮ Я -->
+  <section id="mine">
+    <div class="sec-head"><h2>Что я делаю сам</h2></div>
+    <p class="sec-note">Это тебе делать не надо, просто чтобы знал. Время по Астане.</p>
+    <dl class="mine">
+      <dt>каждый день 16:45</dt><dd>Читаю комменты: что пишут о тебе, на что стоит ответить, истории подписчиц для текстов</dd>
+      <dt>каждое утро</dt><dd>Разбор вчерашних роликов через 12 часов: что подписало, что нет</dd>
+      <dt>каждые 2 дня</dt><dd>Пачка: 10 текстов на день, на 2 дня вперёд, со временем и звуком</dd>
+      <dt>воскресенье 15:00</dt><dd>Разбор Telegram и кандидаты в олды недели</dd>
+      <dt>понедельник</dt><dd>Итог недели против целей ноября</dd>
+      <dt>когда кинешь автора</dt><dd>Вдохновение: разбор и 5–10 своих текстов по его приёмам</dd>
+    </dl>
+    <p class="sec-note">Без твоего «да» я никому не пишу, ничего не публикую и не отвечаю от твоего имени.</p>
+  </section>
+
+  <div class="foot">обновлено <span class="upd">1 ноября 2026</span> · новые задачи добавлю сюда</div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function () {
+  var TEXTS = [];
+
+  var KEY = 'dimaTasks.v1';
+  var store = {};
+  try { store = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { store = {}; }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
+
+  var toastEl = document.getElementById('toast'), toastT;
+  function toast(msg) {
+    toastEl.textContent = msg; toastEl.classList.add('on');
+    clearTimeout(toastT); toastT = setTimeout(function () { toastEl.classList.remove('on'); }, 1600);
+  }
+
+  // тексты вдохновения
+  var box = document.getElementById('texts');
+  TEXTS.forEach(function (t, i) {
+    var el = document.createElement('div');
+    el.className = 'tx';
+    var tags = '#жиза #щп #правда' + (t.ex ? ' #бывший' : '');
+    el.innerHTML =
+      '<div class="tx-head"><span class="tx-slot">' + t.day + ' · ' + t.slot + ' МСК</span>' +
+      '<button class="btn" type="button" id="copy-' + i + '">скопировать</button></div>' +
+      '<pre></pre>' +
+      '<div class="tx-cap">подпись: <b></b> · <span class="tags"></span></div>' +
+      '<div class="tx-from">приём из ролика ' + t.from + '</div>';
+    el.querySelector('pre').textContent = t.text;
+    el.querySelector('.tx-cap b').textContent = t.cap;
+    el.querySelector('.tags').textContent = tags;
+    el.querySelector('button').addEventListener('click', function () {
+      var full = t.text + '\n\n' + t.cap + ' ' + tags;
+      var done = function () { toast('скопировано'); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(full).then(done, function () { selectPre(el); });
+      } else selectPre(el);
+    });
+    box.appendChild(el);
+  });
+  function selectPre(el) {
+    var r = document.createRange(); r.selectNodeContents(el.querySelector('pre'));
+    var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    toast('выделил текст, скопируй вручную');
+  }
+
+  // галочки
+  var tasks = [].slice.call(document.querySelectorAll('.task'));
+  function render() {
+    var done = 0;
+    tasks.forEach(function (t) {
+      var on = !!store[t.dataset.id];
+      t.classList.toggle('done', on);
+      t.querySelector('.check').checked = on;
+      if (on) done++;
+    });
+    document.getElementById('pCount').textContent = done + ' из ' + tasks.length;
+    document.getElementById('pBar').style.width = (tasks.length ? done / tasks.length * 100 : 0) + '%';
+    [].forEach.call(document.querySelectorAll('[data-count]'), function (c) {
+      var list = tasks.filter(function (t) { return t.closest('section').id === c.dataset.count; });
+      var left = list.filter(function (t) { return !store[t.dataset.id]; }).length;
+      c.textContent = left ? 'осталось ' + left : 'всё сделано';
+    });
+  }
+  tasks.forEach(function (t) {
+    t.querySelector('.check').addEventListener('change', function (e) {
+      if (e.target.checked) store[t.dataset.id] = Date.now(); else delete store[t.dataset.id];
+      save(); render();
+      if (e.target.checked) toast('готово');
+    });
+  });
+  render();
+})();
+</script>
+
+</body>
+</html>
