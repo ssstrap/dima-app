@@ -2,6 +2,11 @@
 
 Тексты для TikTok на каждый день, рекламные треки, посты и сторис для Telegram.
 
+**Сайт:** https://ssstrap.github.io/dima-app/ · задачи: https://ssstrap.github.io/dima-app/zadachi.html
+**Репозиторий:** https://github.com/ssstrap/dima-app (выложен 01.11.2026)
+
+Обновляет Claude: `node data/build_app.js` из папки kurs, потом в `kurs/dima-app` — `git add -A`, `git commit`, `git push`. Через минуту сайт обновится сам.
+
 ## Как выложить на GitHub (один раз)
 
 1. Зайди на github.com → справа сверху **+** → **New repository**.
