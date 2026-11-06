@@ -360,3 +360,5 @@ td.warn { color: var(--test); font-weight: 700; }
 .b-why .more { margin-top: 8px; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
 .b-why .more p { margin: 0 0 8px; }
 .b-why .more b { color: var(--text, #fff); }
+.task.hot { --kind: #ff8a3d; border-color: rgba(255, 138, 61, .5); }
+.task-chips .chip.hot { color: #ff8a3d; background: rgba(255, 138, 61, .15); }

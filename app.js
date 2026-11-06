@@ -453,15 +453,16 @@
     var body = secs.map(function (s) {
       var list = items.filter(function (x) { return x.sec === s.id; });
       if (!list.length) return '';
+      list = list.filter(function (x) { return x.hot; }).concat(list.filter(function (x) { return !x.hot; }));
       return '<section class="t-sec" id="b-' + s.id + '">' +
         '<div class="t-sec-head"><h2>' + esc(s.title) + '</h2><span class="hint">' + list.length + '</span></div>' +
         (s.note ? '<div class="hint t-note">' + esc(s.note) + '</div>' : '') +
         '<div class="list">' + list.map(function (x) {
           var isNew = x.date && x.date >= fresh;
-          return '<article class="card task k-' + esc(s.id) + '">' +
+          return '<article class="card task k-' + esc(s.id) + (x.hot ? ' hot' : '') + '">' +
             '<div class="task-title">' + esc(x.title) + '</div>' +
             (x.short ? '<div class="task-sub b-sub">' + esc(x.short) + '</div>' : '') +
-            '<div class="task-chips b-chips">' + (isNew ? '<span class="chip k">новое</span>' : '') +
+            '<div class="task-chips b-chips">' + (x.hot ? '<span class="chip hot">🔥 самое горячее</span>' : '') + (isNew ? '<span class="chip k">новое</span>' : '') +
             (x.tag ? '<span class="chip">' + esc(x.tag) + '</span>' : '') + '</div>' +
             (x.details ? '<details class="why b-why"><summary>подробнее</summary><div class="more">' + x.details + '</div></details>' : '') +
             '</article>';
