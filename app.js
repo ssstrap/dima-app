@@ -8,6 +8,7 @@
   var TG = D.tg || { channels: [], stories: [] };
   var TASKS = D.tasks || { sections: [], tasks: [] };
   var INSPO = D.inspo || { authors: [] };
+  var BOARD = D.board || { sections: [], items: [] };
   var TZ = META.tz || { label: 'Астана', offsetFromMsk: 2 };
   var TABS = ['tasks', 'inspo', 'tiktok', 'ads', 'tg'];
 
@@ -435,52 +436,34 @@
       pastBtn(pastP) + '<div class="list">' + (body || '<div class="empty">Постов пока нет</div>') + '</div>' + soon();
   }
 
-  // ---------- задачи ----------
-  // details в tasks.json — HTML, который пишу я сам (data/app/tasks.json), поэтому вставляется как есть
-  function taskForm(t) {
-    var isNew = !t;
-    t = t || { id: 'new', section: 'today', title: '', sub: '' };
-    return '<article class="card task task-form k-' + esc(t.section) + '" data-tform="' + esc(t.id) + '">' +
-      '<input class="tf-title" type="text" placeholder="что сделать" value="' + esc(t.title) + '" aria-label="название задачи">' +
-      '<textarea class="tf-sub" rows="3" placeholder="подробности (можно пусто)" aria-label="подробности">' + esc(t.sub || '') + '</textarea>' +
-      '<select class="tf-sec" aria-label="раздел">' + (TASKS.sections || []).map(function (s) {
-        return '<option value="' + esc(s.id) + '"' + (s.id === t.section ? ' selected' : '') + '>' + esc(s.title) + '</option>';
-      }).join('') + '</select>' +
-      '<div class="actions"><button class="btn primary" type="button" data-tsave="' + esc(t.id) + '">сохранить</button>' +
-      '<button class="btn" type="button" data-tcancel="1">отмена</button>' +
-      (isNew ? '' : '<button class="btn toggle" type="button" data-tdel="' + esc(t.id) + '" aria-label="удалить задачу">🗑</button>') +
-      '</div></article>';
-  }
-  function renderTasks() {
-    var all = allTasks();
-    var done = all.filter(function (t) { return tdone[t.id]; }).length;
-    var head = '<div class="section-title">Задачи</div>' +
-      '<div class="t-progress"><div class="goal-row"><span>сделано</span><span><b>' + done + '</b> из ' + all.length + '</span></div>' +
-      '<div class="bar"><i style="width:' + (all.length ? done / all.length * 100 : 0).toFixed(1) + '%"></i></div></div>' +
-      (ui.editTask === 'new' ? taskForm(null) : '<button class="btn wide add-task" type="button" data-tnew="1">+ своя задача</button>') +
-      '<div class="chips filters">' + (TASKS.sections || []).map(function (s) {
-        return '<a class="fchip" href="#t-' + s.id + '" data-jump="t-' + s.id + '">' + esc(s.title.toLowerCase()) + '</a>';
+  // ---------- сводка: правила, готово, не готово, идеи ----------
+  // Дима задачи не ведёт (выгорание) — здесь только то, что есть, чего нет и что придумали.
+  // details в board.json — HTML, который пишу я сам (data/app/board.json), поэтому вставляется как есть
+  function renderBoard() {
+    var secs = BOARD.sections || [];
+    var items = BOARD.items || [];
+    var fresh = shiftDate(calendarToday(), -3);
+    var count = function (id) { return items.filter(function (x) { return x.sec === id; }).length; };
+    var head = '<div class="section-title">Сводка</div>' +
+      '<div class="hint t-note">Коротко — что у нас есть, чего нет и что придумали. Нажми «подробнее», там зачем и почему.' +
+      (BOARD.updated ? ' Обновлено ' + esc(dateShort(BOARD.updated)) + '.' : '') + '</div>' +
+      '<div class="chips filters">' + secs.map(function (s) {
+        return '<a class="fchip" href="#b-' + s.id + '" data-jump="b-' + s.id + '">' + esc(s.title.toLowerCase()) + ' ' + count(s.id) + '</a>';
       }).join('') + '</div>';
-    var body = (TASKS.sections || []).map(function (s) {
-      var list = all.filter(function (t) { return t.section === s.id; });
+    var body = secs.map(function (s) {
+      var list = items.filter(function (x) { return x.sec === s.id; });
       if (!list.length) return '';
-      var left = list.filter(function (t) { return !tdone[t.id]; }).length;
-      return '<section class="t-sec" id="t-' + s.id + '">' +
-        '<div class="t-sec-head"><h2>' + esc(s.title) + '</h2><span class="hint">' + (left ? 'осталось ' + left : 'всё сделано') + '</span></div>' +
+      return '<section class="t-sec" id="b-' + s.id + '">' +
+        '<div class="t-sec-head"><h2>' + esc(s.title) + '</h2><span class="hint">' + list.length + '</span></div>' +
         (s.note ? '<div class="hint t-note">' + esc(s.note) + '</div>' : '') +
-        '<div class="list">' + list.map(function (t) {
-          if (ui.editTask === t.id) return taskForm(t);
-          var on = !!tdone[t.id];
-          return '<article class="card task k-' + s.id + (on ? ' done' : '') + '">' +
-            '<div class="task-row"><input type="checkbox" class="task-check" id="tc-' + esc(t.id) + '" data-task="' + esc(t.id) + '"' + (on ? ' checked' : '') +
-            ' aria-label="' + (s.id === 'look' ? 'прочитано' : 'сделано') + '">' +
-            '<label class="task-title" for="tc-' + esc(t.id) + '">' + esc(t.title) + '</label>' +
-            '<button class="task-edit" type="button" data-tedit="' + esc(t.id) + '" aria-label="изменить задачу">✎</button></div>' +
-            (t.sub ? '<div class="task-sub">' + esc(t.sub) + '</div>' : '') +
-            ((t.chips || []).length ? '<div class="task-chips">' + t.chips.map(function (c, i) {
-              return '<span class="chip' + (i ? '' : ' k') + '">' + esc(c) + '</span>';
-            }).join('') + '</div>' : '') +
-            (t.details ? '<details class="why"><summary>подробнее</summary><div class="more">' + t.details + '</div></details>' : '') +
+        '<div class="list">' + list.map(function (x) {
+          var isNew = x.date && x.date >= fresh;
+          return '<article class="card task k-' + esc(s.id) + '">' +
+            '<div class="task-title">' + esc(x.title) + '</div>' +
+            (x.short ? '<div class="task-sub b-sub">' + esc(x.short) + '</div>' : '') +
+            '<div class="task-chips b-chips">' + (isNew ? '<span class="chip k">новое</span>' : '') +
+            (x.tag ? '<span class="chip">' + esc(x.tag) + '</span>' : '') + '</div>' +
+            (x.details ? '<details class="why b-why"><summary>подробнее</summary><div class="more">' + x.details + '</div></details>' : '') +
             '</article>';
         }).join('') + '</div></section>';
     }).join('');
@@ -560,7 +543,7 @@
     copyN = 0;
     var daysEl = document.getElementById('days');
     var keepScroll = daysEl ? daysEl.scrollLeft : null;
-    var html = ui.tab === 'ads' ? renderAds() : ui.tab === 'tg' ? renderTg() : ui.tab === 'tasks' ? renderTasks() :
+    var html = ui.tab === 'ads' ? renderAds() : ui.tab === 'tg' ? renderTg() : ui.tab === 'tasks' ? renderBoard() :
       ui.tab === 'inspo' ? renderInspo() : renderTiktok();
     view.innerHTML = html;
     document.querySelectorAll('.tab').forEach(function (b) {

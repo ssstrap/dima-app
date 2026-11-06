@@ -349,3 +349,14 @@ td.warn { color: var(--test); font-weight: 700; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* сводка: правила, готово, не готово, идеи */
+.task.k-rules { --kind: #ffd84d; }
+.task.k-done { --kind: #2fe0a6; }
+.task.k-todo { --kind: #ff7b7b; }
+.task.k-ideas { --kind: #c9a8ff; }
+.b-sub, .b-chips, .task .b-why { margin-left: 0; }
+.b-chips:empty { display: none; }
+.b-why .more { margin-top: 8px; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
+.b-why .more p { margin: 0 0 8px; }
+.b-why .more b { color: var(--text, #fff); }
