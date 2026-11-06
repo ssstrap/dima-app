@@ -6,8 +6,8 @@ window.DIMA = {
    "offsetFromMsk": 2
   },
   "tg": {
-   "followers": 1490,
-   "date": "2026-10-26"
+   "followers": 1848,
+   "date": "2026-11-06"
   },
   "soon": [
    "Instagram",
@@ -23,7 +23,7 @@ window.DIMA = {
     "at": "2026-11-05T16:45:43.359Z"
    }
   },
-  "built": "2026-11-06T06:23:58.690Z"
+  "built": "2026-11-06T06:25:08.330Z"
  },
  "tiktok": [
   {
