@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Метод Пепла</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Макет: одна колонка-конспект, как трек-лист; цифры моноширинным, акцент изумрудный (как dima-app) */
+:root{
+  --bg:#f3f6f5; --surface:#ffffff; --ink:#10201c; --muted:#5b6d68; --line:#d7e2df;
+  --accent:#0f8a6c; --accent-soft:#dcf1ea; --blue:#1d5fa8; --warn:#b4541c; --warn-soft:#fbe9dc;
+  --display:"Unbounded","Golos Text",system-ui,sans-serif;
+  --body:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c1513; --surface:#13201d; --ink:#e4efec; --muted:#93a8a2; --line:#24352f;
+  --accent:#3fcf9f; --accent-soft:#143a30; --blue:#6aa8ec; --warn:#f0a06a; --warn-soft:#3a2516; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c1513; --surface:#13201d; --ink:#e4efec; --muted:#93a8a2; --line:#24352f;
+  --accent:#3fcf9f; --accent-soft:#143a30; --blue:#6aa8ec; --warn:#f0a06a; --warn-soft:#3a2516; color-scheme:dark}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 var(--body)}
+.wrap{max-width:860px;margin:0 auto;padding-block:40px 80px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:56px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.2}
+h1{font-size:clamp(28px,6vw,44px);font-weight:700;letter-spacing:-.01em}
+h2{font-size:clamp(20px,3.6vw,26px);font-weight:700}
+h3{font-size:16px;font-weight:500}
+p{margin:0;max-width:66ch}
+.eyebrow{font:600 12px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.lead{font-size:18px;color:var(--muted)}
+section{display:flex;flex-direction:column;gap:18px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+ul.plain{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:8px;max-width:68ch}
+b{font-weight:600}
+.quote{font-family:var(--mono);font-size:14px;background:var(--accent-soft);color:var(--ink);padding:2px 6px;border-radius:4px}
+
+/* Шапка */
+header{display:flex;flex-direction:column;gap:16px}
+.meta{display:flex;flex-wrap:wrap;gap:8px 20px;font:13px/1.4 var(--mono);color:var(--muted)}
+
+/* Ответ в трёх строках */
+.answer{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.answer div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.answer .k{font:600 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+/* График */
+.chartbox{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 12px 10px;overflow-x:auto}
+.chartbox svg{display:block;min-width:720px;width:100%;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font:12px/1.3 var(--mono);color:var(--muted);padding:8px 4px 0}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.note{font-size:13px;color:var(--muted);max-width:70ch}
+
+/* Фазы — трек-лист */
+.phases{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.phase{display:grid;grid-template-columns:150px 1fr;gap:6px 24px;padding:20px 0;border-bottom:1px solid var(--line)}
+.phase .when{font:600 13px/1.4 var(--mono);color:var(--muted)}
+.phase .when span{display:block;color:var(--accent);font-size:20px;margin-top:4px}
+.phase .body{display:flex;flex-direction:column;gap:8px;min-width:0}
+.phase.bad .when span{color:var(--warn)}
+@media (max-width:620px){.phase{grid-template-columns:1fr}}
+
+/* Анатомия сниппета */
+.anat{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.anat div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.anat .k{font:600 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.feed{font:13px/1.5 var(--mono);background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow-x:auto}
+.feed table{border-collapse:collapse;width:100%;min-width:520px}
+.feed td,.feed th{padding:8px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.feed th{color:var(--muted);font-weight:600;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.feed td.r,.feed th.r{text-align:right}
+.feed tr:last-child td{border-bottom:0}
+.hot{color:var(--accent);font-weight:600}
+
+/* Комменты */
+.comments{display:flex;flex-wrap:wrap;gap:8px}
+.comments span{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:14px}
+.comments em{font-style:normal;font:12px var(--mono);color:var(--muted);margin-left:6px}
+
+/* За и против */
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:620px){.vs{grid-template-columns:1fr}}
+.vs > div{display:flex;flex-direction:column;gap:10px;min-width:0}
+.vs h3{display:flex;align-items:center;gap:8px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--accent);flex:none}
+.dot.w{background:var(--warn)}
+.vs ul{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:8px}
+
+/* План */
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;counter-reset:s}
+.steps li{counter-increment:s;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 16px 16px 60px;position:relative;display:flex;flex-direction:column;gap:8px}
+.steps li::before{content:counter(s);position:absolute;left:16px;top:14px;font:700 20px/1 var(--display);color:var(--accent)}
+.steps .who{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:12px/1 var(--mono);padding:5px 8px;border-radius:6px;background:var(--accent-soft);color:var(--ink)}
+.chip.c{background:transparent;border:1px solid var(--line);color:var(--muted)}
+.example{font-family:var(--mono);font-size:13px;line-height:1.7;border-left:3px solid var(--accent);padding:4px 0 4px 12px;color:var(--ink);white-space:pre-line}
+
+.callout{background:var(--warn-soft);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:6px}
+.callout b{color:var(--warn)}
+
+table.kpi{border-collapse:collapse;width:100%;min-width:520px;font-size:14px}
+table.kpi td,table.kpi th{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+table.kpi th{font:600 11px/1.2 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tablebox{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow-x:auto}
+
+footer{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:20px}
+footer a{color:var(--blue)}
+.back{font:600 13px/1 var(--mono);color:var(--accent);text-decoration:none;align-self:flex-start}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <a class="back" href="./#tasks">← на сайт</a>
+  <div class="eyebrow">Разбор · вдохновение · музыка</div>
+  <h1>Как Пепел Нахуди стал артистом из тиктокера</h1>
+  <p class="lead">Я прошёл его TikTok @ashonhoodie с первого ролика (29.10.2020) по октябрь 2023, это 409 видео. Открыл главные, прочитал комменты. Ниже его схема по шагам, где он ошибся, и как перенести это на «дима в курсе».</p>
+  <div class="meta"><span>@ashonhoodie · 1,1 млн подписчиков сейчас</span><span>разбор 06.11.2026</span><span>у нас: 143 717 на 05.11</span><span>старт: когда будет трек, ~февраль–март 2027</span></div>
+</header>
+
+<section>
+  <div class="eyebrow">Коротко</div>
+  <div class="answer">
+    <div><span class="k">Что он сделал</span><p>Год снимал вирусный формат «разбор имени» и уже тогда ставил под него <b>свои</b> звуки. Потом выдал 12-секундный кусок трека с одной дерзкой строчкой и 12 раз за 4 дня попросил «сделаем 100 клипов под звук?».</p></div>
+    <div><span class="k">Где ошибся</span><p>Бросил мемы ради одних сниппетов. Медиана просмотров упала с ~300K до <b class="num">15–20K</b> и держалась так почти год. Взлетел снова, только когда стал вести всех в свой ТГ.</p></div>
+    <div><span class="k">Сработает у нас?</span><p><b>Да, и у нас условия лучше:</b> девочкам, которые читают про бывших, песня про любовь ближе, чем рэп фанатам мемов про имена. Свой формат не бросаем. Трек ставим звуком под те же тексты.</p></div>
+  </div>
+  <p class="note">Поправка: трек, который ты помнишь, называется «Каждый день». Строчка звучит так: «каждый день я плачу и думаю, как тебя х*ячу». Сниппет вышел 3 марта 2022, а не в 2021: в 2021 были мемы про имена. Про «~200K подписчиков на тот момент» знаю только с твоих слов из его подкаста. В открытых данных TikTok подписчиков на прошлые даты нет.</p>
+</section>
+
+<section>
+  <div class="eyebrow">Цифры</div>
+  <h2>Медиана просмотров по месяцам</h2>
+  <div class="chartbox"><svg id="chart" viewBox="0 0 860 330" role="img" aria-label="Медиана просмотров роликов Пепла по месяцам с октября 2020 по октябрь 2023, логарифмическая шкала"></svg></div>
+  <div class="legend" id="legend"></div>
+  <p class="note">Шкала логарифмическая: каждая линия больше предыдущей в 10 раз. Пустые месяцы (май–июнь, сентябрь, ноябрь 2021, апрель 2022) означают, что роликов за них в профиле сейчас нет: он их удалил или не снимал. Поэтому в 2021 видно только ~25 роликов, и все они сильные.</p>
+</section>
+
+<section>
+  <div class="eyebrow">Хронология</div>
+  <h2>Пять этапов</h2>
+  <div class="phases">
+    <div class="phase">
+      <div class="when">окт 2020 – окт 2021<span class="num">23,3M</span></div>
+      <div class="body">
+        <h3>Вирусный формат с заказом через комменты</h3>
+        <p>«9 ассоциаций с именем…», потом «Разбор имени»: он выгибается в букву, а на каждую букву идёт мемная нарезка. Каждый ролик начинается с «Ответить пользователю @…», в подписи стоит <span class="quote">Пиши своё имя в комментарии</span>. Комменты превращаются в бесконечную очередь заказов. Топы: «Разбор имени Даша» <b class="num">23,3M</b> (25.10.2021), «Лера» <b class="num">10M / 1,6M лайков</b> (24.07.2021).</p>
+        <p><b>Главное, чего не видно сразу:</b> уже в ноябре 2020 звуки к мемам назывались «Арина — Pepel Nahudi», «Полина — Pepel Nahudi», а в подписях было «слушай мой трек по ссылке в профиле». В 2021-м под мемами шли его треки: ролик на звуке «KASSA» набрал <b class="num">3M / 538K лайков</b>, в подписях стояло <span class="quote">Залетай на звук ниже 👇🏻</span>. То есть люди слышали его музыку ещё до того, как он объявил себя артистом.</p>
+      </div>
+    </div>
+    <div class="phase bad">
+      <div class="when">янв – фев 2022<span class="num">~17K</span></div>
+      <div class="body">
+        <h3>Резкий уход в сниппеты, и охваты падают</h3>
+        <p>Мемы закончились, начались «Suck My Vibe snippet», «ЯБВТЕ», фиты. Около 25 роликов на одном звуке набрали в основном по <b class="num">10–20K</b>. Подписи вроде <span class="quote">500 клипов на звуке и дропаем трек!</span> не сработали: аудиторию мемов про имена его рэп не зацепил. Залетел один ролик, «УРА!!» на 1,2M.</p>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="when">3 – 6 марта 2022<span class="num">4,6M</span></div>
+      <div class="body">
+        <h3>«Каждый день»: тот самый хит</h3>
+        <p>Новый сниппет, и он выложил его <b>12 раз за 4 дня</b>. Пять роликов набрали от 680K до 4,6M. Разбор ниже. 6 марта посты обрываются до мая: в эти дни TikTok закрыл новые публикации из России. Волну он не дожал, а дату релиза обещал «в инсте».</p>
+      </div>
+    </div>
+    <div class="phase bad">
+      <div class="when">май 2022 – фев 2023<span class="num">~25K</span></div>
+      <div class="body">
+        <h3>Почти год на ~15–35K и релиз раз в 1–2 месяца</h3>
+        <p>По каждому треку одна и та же цепочка: сниппет → <span class="quote">Дроп через 5 дней!</span> → <span class="quote">в сети! ссылка в профиле</span>. Были «Если Б», «Др04ит» (с розыгрышем худи), «Сообщения», «Ногами». Работа ровная, но без взрыва.</p>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="when">мар – окт 2023<span class="num">2,5M</span></div>
+      <div class="body">
+        <h3>Сниппет и воронка в ТГ: второй, большой взлёт</h3>
+        <p>«Заново завоевать». Почти каждый ролик подписан одинаково: <span class="quote">трек появится в тг (ссылка в профиле)</span>. Даже звук назван так: «трек появится в тг pepelnahoodie», «Заново завоевать 28.04». Где бы его ни использовали, название звука само работает рекламой. Медиана выросла до <b class="num">190–290K</b>, релиз набрал <b class="num">2,5M</b>, потом были «МЫ В ЧАРТАХ» и цели <span class="quote">5к клипов и i do droppp</span>. Он репостил чужие ролики под свой звук.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Анатомия хита</div>
+  <h2>Как был сделан сниппет «Каждый день»</h2>
+  <div class="anat">
+    <div><span class="k">Длина</span><p><b class="num">12 секунд</b>, хук сразу. Все его залетевшие сниппеты длятся 6–12 с, ролик досматривают и пересматривают.</p></div>
+    <div><span class="k">Строчка</span><p>Начинается грустно, «каждый день я плачу и думаю…», а заканчивается неожиданно: «…как тебя х*ячу». Поворот в конце работает как мем, это хочется переслать.</p></div>
+    <div><span class="k">Кадр</span><p>Селфи на улице, шапка, снег, просто поёт под звук. Ключевую строчку вывел <b>субтитром</b> по центру: «КАК ТЕБЯ Х*ЯЧУ».</p></div>
+    <div><span class="k">Подпись</span><p>Не «послушайте мой трек», а задание аудитории: <span class="quote">Сделаем первые 100 клипов?</span> Потом цель растёт до 1000 и до 3000.</p></div>
+    <div><span class="k">Частота</span><p>Один и тот же звук 12 раз за 4 дня, в разных кадрах. Алгоритм получает несколько шансов, а звук начинает узнаваться.</p></div>
+    <div><span class="k">Дефицит</span><p>Полного трека нет, есть только «дату дропа скажу в инсте». Люди идут за датой туда, куда он их ведёт.</p></div>
+  </div>
+  <div class="feed">
+    <table>
+      <thead><tr><th>дата</th><th>подпись</th><th class="r">просмотры</th><th class="r">лайки</th></tr></thead>
+      <tbody>
+        <tr><td>03.03</td><td>Когда выпускать? 👀</td><td class="r num">376K</td><td class="r num">40K</td></tr>
+        <tr><td>03.03</td><td>Сделаем первые 100 клипов? 🤔</td><td class="r num hot">4,6M</td><td class="r num hot">329K</td></tr>
+        <tr><td>04.03</td><td>Каждый день я плачу.. 😢</td><td class="r num">681K</td><td class="r num">40K</td></tr>
+        <tr><td>04.03</td><td>Дату дропа скажу в инсте ❤️</td><td class="r num">716K</td><td class="r num">50K</td></tr>
+        <tr><td>05.03</td><td>Сделаем 1000 клипов? 👀</td><td class="r num hot">1,0M</td><td class="r num hot">116K</td></tr>
+        <tr><td>06.03</td><td>Сделаем 1ООО клипов? 😳</td><td class="r num">842K</td><td class="r num">80K</td></tr>
+        <tr><td>06.03</td><td>3ООО клипов и дроп? 😳</td><td class="r num">290K</td><td class="r num">28K</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>Что пишут под старыми роликами сейчас</h3>
+  <div class="comments">
+    <span>«Тёмное прошлое Димы…»<em>17,8K ♥</em></span>
+    <span>«да никто не вспомнит»<em>13,6K ♥</em></span>
+    <span>«ЭТО ОН ПЕЛ?»<em>12,4K ♥</em></span>
+    <span>«ЧТО В СМЫСЛЕ ЭТО ПЕПЕЛ»<em>6,8K ♥</em></span>
+    <span>«А щас он разносит интернет своими треками»<em>4,2K ♥</em></span>
+    <span>«о, впн слетел»<em>5,3K ♥</em></span>
+  </div>
+  <p class="note">Кстати, его тоже зовут Дмитрий. «ЭТО ОН ПЕЛ?» — главная реакция: людей удивляет, что тот самый блогер ещё и поёт. Нам нужен этот же эффект: «стоп, это дима поёт?».</p>
+</section>
+
+<section>
+  <div class="eyebrow">Сработает ли сейчас</div>
+  <h2>Ноябрь 2026, наш аккаунт</h2>
+  <div class="vs">
+    <div>
+      <h3><span class="dot"></span>За нас</h3>
+      <ul>
+        <li><b>Аудитория та же, что у песни.</b> У Пепла мемы про имена смотрели одни люди, а рэп слушали другие, и переход сломался. У тебя тексты про бывших и любовный трек. Слушатель остаётся тем же.</li>
+        <li><b>Звук уже стоит под роликами.</b> Ты делаешь 30–40 рекламных роликов в месяц с чужими треками. Механика та же, только трек свой.</li>
+        <li><b>TikTok всё ещё главная витрина музыки.</b> По данным TikTok и Luminate, 84% песен из Billboard Global 200 за 2024 год сначала завирусились в TikTok.</li>
+        <li><b>ТГ уже есть.</b> Пепел взлетел второй раз только с воронкой «трек появится в тг». У нас канал готов, и релиз растит его заодно (наш приоритет №3).</li>
+        <li><b>Ты в Казахстане</b> и публикуешь без ограничений. Пепел в марте 2022 остановился на пике из-за закрытия TikTok в России.</li>
+      </ul>
+    </div>
+    <div>
+      <h3><span class="dot w"></span>Против нас</h3>
+      <ul>
+        <li><b>Хит нельзя заказать.</b> «Suck My Vibe» не зашёл, «Каждый день» залетел. Нужны 2–3 разных куска и проверка на цифрах.</li>
+        <li><b>Ты не поёшь и не говоришь в камеру.</b> У Пепла кадр был с лицом и губами. У нас трек звучит под текстом. Это слабее, чем «он сам поёт», но это ровно твой формат.</li>
+        <li><b>Если перейти только на сниппеты, охваты упадут.</b> У него медиана упала в 15 раз. Свой звук должен стоять под частью роликов, а не под всеми.</li>
+        <li><b>Рекламные слоты.</b> Каждый ролик со своим треком означает на один чужой рекламный звук меньше. Считаем деньги.</li>
+        <li><b>Трек должен быть готов.</b> Пепел залетел, а релиза не было. Полная версия и дистрибуция нужны до первого сниппета.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">План для нас</div>
+  <h2>Метод Пепла в формате «дима в курсе»</h2>
+  <ol class="steps">
+    <li>
+      <h3>Подготовить трек и 2–3 куска по 8–12 секунд</h3>
+      <p>Каждый кусок начинается с самой цепляющей строчки, без вступления. Лучше всего строчка с поворотом в конце, как у Пепла: начало нежное, а конец такой, что хочется переслать подруге. Полная версия загружена в дистрибуцию (Яндекс, VK, Звук и библиотека TikTok) заранее, чтобы после залёта выпустить трек за 1–2 недели.</p>
+      <div class="who"><span class="chip">Дима: трек и нарезка</span><span class="chip c">я: выбираю строчки, проверяю дистрибьютора для РК → РФ</span></div>
+    </li>
+    <li>
+      <h3>Звук с правильным названием</h3>
+      <p>Звук загружаешь своим роликом, чтобы он стал «оригинальным» и его можно было переименовать. Название звука само работает как реклама, как у Пепла («трек появится в тг pepelnahoodie»).</p>
+      <div class="example">дима — &lt;название&gt; (выйдет в тгк)
+дима — &lt;название&gt; · 28.11</div>
+      <div class="who"><span class="chip">Дима: 2 мин</span></div>
+    </li>
+    <li>
+      <h3>Тихий тест: 1–2 ролика в день со своим звуком</h3>
+      <p>Твои обычные тексты про него, только вместо трендового звука твой трек. Лучше всего брать тексты про «заботливого его», они дают больше всего подписок. Последняя строка на экране может совпадать со строчкой песни, тогда текст и звук говорят одно и то же. Так получается наш вариант субтитра «как тебя х*ячу».</p>
+      <div class="example">он не пишет первым
+зато помнит что ты не ешь лук
+…
+&lt;строчка из трека&gt;</div>
+      <div class="who"><span class="chip c">я: ставлю звук в пачке dima-texts, пометка в приложении</span></div>
+    </li>
+    <li>
+      <h3>Смотрим через 12 часов</h3>
+      <p>Сравниваем ролики со своим звуком и обычные (dima-12h): просмотры, подписки на 100K, сколько раз в комментах спросили «что за песня» или «кто поёт». Тот кусок, про который спрашивают, становится главным.</p>
+      <div class="who"><span class="chip c">я: отдельная строка в утреннем разборе</span></div>
+    </li>
+    <li>
+      <h3>Рывок, как у Пепла 3–6 марта</h3>
+      <p>Когда победитель понятен: 3–4 ролика в день на этом звуке 4–7 дней подряд. В подписях задание, а не просьба послушать. Цель растёт по ходу.</p>
+      <div class="example">сделаем первые 100 клипов под этот звук?
+кто дотянет до 1000 видео, тем выложу трек раньше
+трек выйдет в тгк. ссылка в профиле</div>
+      <div class="who"><span class="chip">Дима: тот же объём, что сейчас</span><span class="chip c">я: подписи и пачка</span></div>
+    </li>
+    <li>
+      <h3>Клипы подписчиц и заслуженный репост</h3>
+      <p>Шаблон, где ничего не надо говорить: «его сообщение, которое я помню наизусть» + твой звук. Лучшие ролики под звуком репостишь по своему правилу (репост надо заслужить), а в ТГ в воскресенье показываешь подборку. Пепел так и делал: «продолжаю репостить ваши видео под этот звук».</p>
+      <div class="who"><span class="chip">Дима: репосты</span><span class="chip c">я: шаблон, сбор роликов под звуком через dima-comments</span></div>
+    </li>
+    <li>
+      <h3>Воронка в ТГ и релиз</h3>
+      <p>Неделю до релиза в канале: «угадай строчку», голосование за обложку, сниппет голосовым и пресейв. В TikTok-сторис: «трек выйдет в тгк, подпишись, чтобы не потерять». В день релиза: «в сети, ссылка в профиле» и просьба поставить трек в музыку профиля Telegram.</p>
+      <div class="who"><span class="chip c">я: план постов на 7–21 день в приложении</span></div>
+    </li>
+    <li>
+      <h3>Раскрытие «это я пою»</h3>
+      <p>Один ролик текстом, без речи: «вы спрашивали чья это песня. моя». Это наш вариант их «ЭТО ОН ПЕЛ?». Ставим его, когда в комментах накопятся вопросы. Если когда-нибудь появятся силы, можно один раз снять себя под трек без слов, как Пепел. Это не обязательно.</p>
+      <div class="who"><span class="chip">Дима: 1 ролик</span></div>
+    </li>
+  </ol>
+  <div class="callout">
+    <p><b>Главное правило из его ошибки.</b> Формат «дима в курсе» не меняем. Свой звук сначала стоит под 1–2 роликами в день, в рывок под 3–4, остальные ролики на обычных звуках. Если подписки на 100K у роликов с треком ниже медианы два дня подряд, долю сокращаем.</p>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Когда начинать и как мерить</div>
+  <h2>Старт, когда будет трек</h2>
+  <p>Записать трек получится, когда будут MacBook, звуковая карта и микрофон. Это примерно через 3–4 месяца, в феврале–марте 2027. План лежит здесь и ждёт.</p>
+  <div class="tablebox">
+    <table class="kpi">
+      <thead><tr><th>Когда</th><th>Что делаем</th></tr></thead>
+      <tbody>
+        <tr><td class="num">ноябрь – январь</td><td>Музыку не трогаем. Растём на текстах: при ~1 500 подписчиков в день 200K будет примерно к середине декабря. Продолжаем «уход на личность»: раз в неделю ответ на коммент о тебе.</td></tr>
+        <tr><td class="num">февраль – март 2027</td><td>Покупка техники и запись трека. Я выбираю дистрибьютора, который отдаёт трек в Яндекс, VK, Звук и в библиотеку TikTok из Казахстана.</td></tr>
+        <tr><td class="num">+2 недели после записи</td><td>Шаги 1–4: 2–3 куска трека звуком под 1–2 текста в день, смотрим цифры через 12 часов.</td></tr>
+        <tr><td class="num">когда ясен победитель</td><td>Шаги 5–8: рывок 3–4 ролика в день, «сделаем 100 клипов?», воронка в ТГ, релиз, ролик «это я пою».</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="tablebox">
+    <table class="kpi">
+      <thead><tr><th>Метрика</th><th>Где беру</th><th>Сигнал «идём дальше»</th></tr></thead>
+      <tbody>
+        <tr><td>Подписки на 100K просмотров</td><td>Studio, dima-12h</td><td class="num">не ниже 75 (наша медиана)</td></tr>
+        <tr><td>Вопросы «что за песня / кто поёт»</td><td>dima-comments</td><td>растут от ролика к ролику</td></tr>
+        <tr><td>Ролики других людей под звуком</td><td>страница звука в TikTok</td><td class="num">первые 100 → цель 1000</td></tr>
+        <tr><td>Доля комментов о самом Диме</td><td>dima-comments</td><td class="num">выше 2% (было 12 из 638)</td></tr>
+        <tr><td>Приход в ТГ в дни рывка</td><td>статистика канала</td><td>выше обычного дня</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <div>Данные: 409 роликов @ashonhoodie с 29.10.2020 по 30.10.2023, выгружены со страницы профиля 06.11.2026 (сортировка «Старое»). Просмотры на сегодня, на момент выхода они были меньше.</div>
+  <div>Биография: <a href="https://cyclowiki.org/wiki/Pepel_Nahudi" target="_blank" rel="noopener">Циклопедия</a>, <a href="https://www.ticketland.ru/persons/pepel-nahudi/" target="_blank" rel="noopener">Ticketland</a>, <a href="https://afisha.yandex.ru/artist/pepel-nahudi" target="_blank" rel="noopener">Яндекс Афиша</a>. TikTok и музыка: <a href="https://newsroom.tiktok.com/tiktok-and-luminate-release-latest-music-impact-report" target="_blank" rel="noopener">TikTok × Luminate</a>.</div>
+</footer>
+</div>
+
+<script>
+(function(){
+  // медиана просмотров по месяцам (из выгрузки), null = роликов нет
+  const data=[["2020-10",56700,"m"],["2020-11",225900,"m"],["2020-12",413200,"m"],["2021-01",300000,"m"],["2021-02",820900,"m"],["2021-03",1700000,"m"],["2021-04",297100,"m"],["2021-05",null],["2021-06",null],["2021-07",525000,"m"],["2021-08",2200000,"m"],["2021-09",null],["2021-10",23300000,"m"],["2021-11",null],["2021-12",29400,"s"],["2022-01",20000,"s"],["2022-02",17700,"s"],["2022-03",264800,"h"],["2022-04",null],["2022-05",13600,"s"],["2022-06",13600,"s"],["2022-07",17300,"s"],["2022-08",35200,"s"],["2022-09",33000,"s"],["2022-10",26900,"s"],["2022-11",35900,"s"],["2022-12",31100,"s"],["2023-01",34300,"s"],["2023-02",45200,"s"],["2023-03",76600,"t"],["2023-04",189400,"t"],["2023-05",224100,"t"],["2023-06",291700,"t"],["2023-07",164900,"t"],["2023-08",136700,"t"],["2023-09",95000,"t"],["2023-10",165900,"t"]];
+  const kinds={m:["мемы «разбор имени»","--accent"],s:["одни сниппеты","--warn"],h:["«Каждый день»","--blue"],t:["сниппеты + ТГ","--blue"]};
+  const svg=document.getElementById('chart'),NS="http://www.w3.org/2000/svg";
+  const W=860,H=330,L=56,R=12,T=34,B=44,iw=W-L-R,ih=H-T-B;
+  const lo=Math.log10(10000),hi=Math.log10(30000000);
+  const y=v=>T+ih-(Math.log10(v)-lo)/(hi-lo)*ih;
+  const bw=iw/data.length;
+  const el=(n,a,t)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;svg.appendChild(e);return e};
+  [[10000,"10K"],[100000,"100K"],[1000000,"1M"],[10000000,"10M"]].forEach(([v,l])=>{
+    el("line",{x1:L,x2:W-R,y1:y(v),y2:y(v),stroke:"var(--line)","stroke-width":1});
+    el("text",{x:L-8,y:y(v)+4,"text-anchor":"end",fill:"var(--muted)","font-size":11,"font-family":"JetBrains Mono, monospace"},l);
+  });
+  data.forEach((d,i)=>{
+    const x=L+i*bw;
+    if(d[1]!=null){
+      const c=`var(${kinds[d[2]][1]})`;
+      el("rect",{x:x+bw*0.18,y:y(d[1]),width:bw*0.64,height:T+ih-y(d[1]),fill:c,rx:2,opacity:d[2]==="t"?0.65:1});
+    } else {
+      el("text",{x:x+bw/2,y:T+ih-4,"text-anchor":"middle",fill:"var(--muted)","font-size":10,"font-family":"JetBrains Mono, monospace"},"·");
+    }
+    const m=d[0].slice(5);
+    if(m==="01"||m==="07"||i===0) el("text",{x:x+bw/2,y:H-B+16,"text-anchor":"middle",fill:"var(--muted)","font-size":10.5,"font-family":"JetBrains Mono, monospace"},(m==="01"?"янв ":m==="07"?"июл ":"окт ")+d[0].slice(2,4));
+  });
+  const ann=[["2021-10","Даша 23,3M"],["2022-01","уход в сниппеты"],["2022-03","«Каждый день» 4,6M"],["2023-04","«Заново» + ТГ"]];
+  ann.forEach(([m,t],k)=>{
+    const i=data.findIndex(d=>d[0]===m),x=L+i*bw+bw/2,v=data[i][1];
+    const ty=k%2?T-14:T-2; const top=y(v);
+    el("line",{x1:x,x2:x,y1:ty+4,y2:Math.max(top-3,ty+4),stroke:"var(--muted)","stroke-width":1,"stroke-dasharray":"2 3"});
+    el("text",{x:k===0?x+4:Math.min(Math.max(x,L+40),W-R-60),y:ty,"text-anchor":k===0?"end":"middle",fill:"var(--ink)","font-size":11,"font-weight":600,"font-family":"Golos Text, sans-serif"},t);
+  });
+  const lg=document.getElementById('legend');
+  [["m"],["s"],["h"],["t"]].forEach(([k])=>{const s=document.createElement('span');s.innerHTML=`<i style="background:var(${kinds[k][1]});${k==="t"?"opacity:.65":""}"></i>${kinds[k][0]}`;lg.appendChild(s)});
+})();
+</script>
+</body>
+</html>
