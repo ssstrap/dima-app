@@ -298,7 +298,7 @@
         esc(t.toLowerCase()) + '<span class="cnt">' + cnt + '</span></button>';
     }).join('');
 
-    // Дима выкладывает пачкой, поэтому время и «следующий» не показываем
+    // Дима заливает пачкой и ставит каждому ролику время в Studio (по Астане), поэтому время показываем, «следующий» — нет
     var nextId = null;
 
     var doneCount = day.items.filter(function (it) { return store.done[it.id]; }).length;
@@ -306,7 +306,7 @@
 
     var cards = items.map(function (it) {
       var test = it.test ? '<span class="chip test">' + (/^(тест|тренд|охват|свобод)/i.test(it.test) ? '' : 'тест: ') + esc(it.test) + '</span>' : '';
-      var time = '';
+      var time = it.slot ? '<span class="time">' + altTime(it.slot) + ' <span class="alt">· ' + esc(it.slot) + ' мск</span></span>' : '';
       return '<article class="card' + (store.done[it.id] ? ' done' : '') + (it.id === nextId ? ' next' : '') + '" data-card="' + it.id + '">' +
         '<div class="card-top"><span class="num">' + it.n + '</span>' +
         '<span class="chip theme ' + themeClass(it.theme) + '">' + esc(it.theme.toLowerCase()) + '</span>' + test +
@@ -326,7 +326,7 @@
     return '<div class="section-title">Мои видео</div>' +
       '<div class="days-wrap" id="daysWrap"><div class="days" id="days">' + chips + '</div></div>' +
       '<div class="day-head"><div><div class="day-title">' + dateLong(date) + '</div>' +
-      '<div class="day-sub">' + day.items.length + ' ' + plural(day.items.length, 'текст', 'текста', 'текстов') + ' · бери 5–7</div></div>' +
+      '<div class="day-sub">' + day.items.length + ' ' + plural(day.items.length, 'текст', 'текста', 'текстов') + (date >= calendarToday() ? ' · время ставь в Studio' : '') + '</div></div>' +
       '<div class="progress' + (doneCount >= 5 ? ' ok' : '') + '"><b>' + doneCount + '</b><span>выложено</span></div></div>' +
       '<div class="chips filters">' + filters + '</div>' +
       '<div class="list">' + (cards || '<div class="empty">В этой теме пусто</div>') + '</div>' + soon();
