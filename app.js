@@ -10,7 +10,7 @@
   var INSPO = D.inspo || { authors: [] };
   var BOARD = D.board || { sections: [], items: [] };
   var TZ = META.tz || { label: 'Астана', offsetFromMsk: 2 };
-  var TABS = ['tasks', 'inspo', 'tiktok', 'ads', 'tg'];
+  var TABS = ['tasks', 'inspo', 'tiktok', 'tg'];
 
   var SOUNDS = {
     'заботливый': ['🤍', 'тёплый, спокойный', '#ffb36b'],
@@ -544,7 +544,7 @@
     copyN = 0;
     var daysEl = document.getElementById('days');
     var keepScroll = daysEl ? daysEl.scrollLeft : null;
-    var html = ui.tab === 'ads' ? renderAds() : ui.tab === 'tg' ? renderTg() : ui.tab === 'tasks' ? renderBoard() :
+    var html = ui.tab === 'tg' ? renderTg() : ui.tab === 'tasks' ? renderBoard() :
       ui.tab === 'inspo' ? renderInspo() : renderTiktok();
     view.innerHTML = html;
     document.querySelectorAll('.tab').forEach(function (b) {
