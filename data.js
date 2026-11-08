@@ -6,24 +6,24 @@ window.DIMA = {
    "offsetFromMsk": 2
   },
   "tg": {
-   "followers": 1848,
-   "date": "2026-11-06"
+   "followers": 2013,
+   "date": "2026-11-08"
   },
   "soon": [
    "Instagram",
    "Threads"
   ],
   "tiktok": {
-   "followers": 143100,
-   "net": 1485,
-   "date": "2026-11-04",
-   "avg7": 1547,
+   "followers": 144980,
+   "net": 768,
+   "date": "2026-11-06",
+   "avg7": 1313,
    "now": {
-    "followers": 144421,
-    "at": "2026-11-06T07:05:14.755Z"
+    "followers": 145166,
+    "at": "2026-11-08T13:54:35.696Z"
    }
   },
-  "built": "2026-11-07T06:07:57.524Z"
+  "built": "2026-11-08T13:55:19.321Z"
  },
  "tiktok": [
   {
