@@ -54,6 +54,137 @@
       .concat(tedit.added);
   }
 
+  // ---------- галочки в базе (Supabase, проект dima-app) ----------
+  // Читать может любой (это только отметки, что вышло), писать — только Дима после входа.
+  // store.mt — когда менялась отметка, store.pend — что еще не ушло в базу. Побеждает более позднее нажатие.
+  var SB = { url: 'https://jerqbsajjpcevzizawso.supabase.co', key: 'sb_publishable_SFH8mGmM6tqR4VRv-eNccg_TbBDbY89' };
+  var SKEY = 'dimaSb.v1';
+  var sess = null;
+  try { sess = JSON.parse(localStorage.getItem(SKEY)); } catch (e) { sess = null; }
+  if (!store.mt) store.mt = {};
+  if (!store.pend) store.pend = {};
+  var sync = { state: sess ? 'on' : 'off', msg: '' };
+  function saveSess() { try { sess ? localStorage.setItem(SKEY, JSON.stringify(sess)) : localStorage.removeItem(SKEY); } catch (e) { /* приватный режим */ } }
+  function sbFetch(path, opt) {
+    opt = opt || {};
+    var h = Object.assign({ apikey: SB.key, 'Content-Type': 'application/json' }, opt.headers || {});
+    if (opt.auth && sess) h.Authorization = 'Bearer ' + sess.access_token;
+    return fetch(SB.url + path, { method: opt.method || 'GET', headers: h, body: opt.body ? JSON.stringify(opt.body) : undefined })
+      .then(function (r) { return r.text().then(function (t) { var j = null; try { j = t ? JSON.parse(t) : null; } catch (e) { j = null; } return { ok: r.ok, status: r.status, data: j }; }); });
+  }
+  function setSess(d) {
+    sess = { access_token: d.access_token, refresh_token: d.refresh_token, expires_at: Date.now() + (d.expires_in || 3600) * 1000, email: d.user && d.user.email || (sess && sess.email) || '' };
+    saveSess();
+    sync.state = 'on';
+  }
+  function freshToken() {
+    if (!sess) return Promise.resolve(false);
+    if (sess.expires_at - 60000 > Date.now()) return Promise.resolve(true);
+    return sbFetch('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: sess.refresh_token } }).then(function (r) {
+      if (r.ok) { setSess(r.data); return true; }
+      if (r.status === 400 || r.status === 401) { sess = null; saveSess(); sync.state = 'off'; sync.msg = 'Вход слетел, войди еще раз.'; }
+      return false;
+    });
+  }
+  // старые галочки, поставленные до базы: при первом входе отправляем и их
+  function adoptLocal() {
+    Object.keys(store.done).concat(Object.keys(store.copied)).forEach(function (id) {
+      if (!store.mt[id]) { store.mt[id] = store.done[id] || store.copied[id] || Date.now(); store.pend[id] = 1; }
+    });
+    save();
+  }
+  function markChanged(id) {
+    store.mt[id] = Date.now();
+    store.pend[id] = 1;
+    save();
+    pushMarks();
+  }
+  var pushing = false;
+  function pushMarks() {
+    var ids = Object.keys(store.pend);
+    if (!sess || pushing || !ids.length) return;
+    pushing = true;
+    var iso = function (t) { return t ? new Date(t).toISOString() : null; };
+    var rows = ids.map(function (id) {
+      return { id: id, done_at: iso(store.done[id]), copied_at: iso(store.copied[id]), updated_at: iso(store.mt[id] || Date.now()) };
+    });
+    freshToken().then(function (ok) {
+      if (!ok) return null;
+      return sbFetch('/rest/v1/marks?on_conflict=id', { method: 'POST', auth: true, body: rows, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' } });
+    }).then(function (r) {
+      pushing = false;
+      if (!r) return;
+      if (r.ok) {
+        ids.forEach(function (id) { if (store.mt[id] <= Date.parse(rows.filter(function (x) { return x.id === id; })[0].updated_at)) delete store.pend[id]; });
+        save();
+        if (sync.msg) { sync.msg = ''; if (ui.tab === 'tasks') render(); }
+      } else {
+        sync.msg = r.status === 401 || r.status === 403 ? 'База не пускает эту почту: писать может только Димина.' : 'Не достучался до базы, отправлю позже.';
+        if (ui.tab === 'tasks') render();
+      }
+    }, function () { pushing = false; });
+  }
+  function pullMarks() {
+    return sbFetch('/rest/v1/marks?select=id,done_at,copied_at,updated_at').then(function (r) {
+      if (!r.ok || !r.data) return;
+      var changed = false;
+      r.data.forEach(function (row) {
+        var rt = Date.parse(row.updated_at);
+        if (store.pend[row.id] || rt <= (store.mt[row.id] || 0)) return;
+        if (row.done_at) store.done[row.id] = Date.parse(row.done_at); else delete store.done[row.id];
+        if (row.copied_at) store.copied[row.id] = Date.parse(row.copied_at);
+        store.mt[row.id] = rt;
+        changed = true;
+      });
+      if (changed) { save(); render(); }
+    }, function () { /* нет сети — живем на локальных */ });
+  }
+  function signIn(email, pass) {
+    sync.msg = 'Вхожу…';
+    render();
+    return sbFetch('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: email, password: pass } }).then(function (r) {
+      if (r.ok) { setSess(r.data); sync.msg = ''; adoptLocal(); pushMarks(); pullMarks(); toast('вошел ✓ галочки теперь в базе'); return; }
+      var code = r.data && (r.data.error_code || r.data.code || r.data.error);
+      if (code === 'email_not_confirmed') { sync.msg = 'Подтверди почту: нажми ссылку в письме от Supabase.'; return; }
+      // такого пользователя нет — регистрируем; Supabase пришлет письмо со ссылкой
+      return sbFetch('/auth/v1/signup', { method: 'POST', body: { email: email, password: pass } }).then(function (s) {
+        if (s.ok && s.data && s.data.access_token) { setSess(s.data); sync.msg = ''; adoptLocal(); pushMarks(); return; }
+        var sc = s.data && (s.data.error_code || s.data.code);
+        if (s.ok) sync.msg = 'Готово. Пришло письмо от Supabase: нажми ссылку в нем, и вход случится сам.';
+        else if (sc === 'user_already_exists') sync.msg = 'Пароль не подошел.';
+        else if (sc === 'weak_password') sync.msg = 'Пароль слишком простой: нужно от 6 знаков.';
+        else sync.msg = 'Не вышло: ' + ((s.data && (s.data.msg || s.data.message)) || s.status);
+      });
+    }, function () { sync.msg = 'Нет сети.'; }).then(function () { render(); });
+  }
+  function signOut() { sess = null; saveSess(); sync.state = 'off'; sync.msg = ''; render(); }
+  // ссылка из письма Supabase открывает сайт с #access_token=… — забираем вход и возвращаем вкладку
+  (function takeLinkSession() {
+    var h = location.hash.slice(1);
+    if (h.indexOf('access_token=') < 0) return;
+    var p = {};
+    h.split('&').forEach(function (kv) { var i = kv.indexOf('='); p[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1)); });
+    setSess({ access_token: p.access_token, refresh_token: p.refresh_token, expires_in: +p.expires_in || 3600 });
+    try { sess.email = JSON.parse(atob(p.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).email || ''; saveSess(); } catch (e) { /* без почты */ }
+    adoptLocal();
+    history.replaceState(null, '', location.pathname + location.search + '#tasks');
+  })();
+  function renderSync() {
+    if (sync.state === 'on') {
+      return '<div class="card sync on"><div class="task-title">☁ Галочки в базе</div>' +
+        '<div class="task-sub b-sub">«Выложил» и «скопировал» видны на всех устройствах и мне.' + (sess && sess.email ? ' Вошел: ' + esc(sess.email) + '.' : '') + '</div>' +
+        (sync.msg ? '<div class="hint t-note">' + esc(sync.msg) + '</div>' : '') +
+        '<div class="actions"><button class="btn ghost" type="button" data-sbout>выйти</button></div></div>';
+    }
+    return '<div class="card sync"><div class="task-title">☁ Галочки только на этом телефоне</div>' +
+      '<div class="task-sub b-sub">Войди один раз — будут на всех устройствах, и я буду видеть, что ты выложил. Первый раз придет письмо со ссылкой.</div>' +
+      '<form class="task-form" data-sbform>' +
+      '<input type="email" name="email" placeholder="почта" autocomplete="username" required>' +
+      '<input type="password" name="pass" placeholder="пароль (придумай, от 6 знаков)" autocomplete="current-password" required minlength="6">' +
+      (sync.msg ? '<div class="hint t-note">' + esc(sync.msg) + '</div>' : '') +
+      '<div class="actions"><button class="btn primary" type="submit">войти</button></div></form></div>';
+  }
+
   var ui = {
     tab: 'tiktok',
     author: null,
@@ -446,7 +577,7 @@
     var count = function (id) { return items.filter(function (x) { return x.sec === id; }).length; };
     var head = '<div class="section-title">Сводка</div>' +
       '<div class="hint t-note">Коротко — что у нас есть, чего нет и что придумали. Нажми «подробнее», там зачем и почему.' +
-      (BOARD.updated ? ' Обновлено ' + esc(dateShort(BOARD.updated)) + '.' : '') + '</div>' +
+      (BOARD.updated ? ' Обновлено ' + esc(dateShort(BOARD.updated)) + '.' : '') + '</div>' + renderSync() +
       '<div class="chips filters">' + secs.map(function (s) {
         return '<a class="fchip" href="#b-' + s.id + '" data-jump="b-' + s.id + '">' + esc(s.title.toLowerCase()) + ' ' + count(s.id) + '</a>';
       }).join('') + '</div>';
@@ -592,7 +723,7 @@
   }
 
   document.addEventListener('click', function (e) {
-    var t = e.target.closest('[data-tab],[data-copy],[data-mark],[data-day],[data-filter],[data-mood],[data-hideused],[data-seg],[data-author],[data-back],[data-jump],[data-showpast],' +
+    var t = e.target.closest('[data-tab],[data-copy],[data-mark],[data-day],[data-filter],[data-mood],[data-hideused],[data-seg],[data-author],[data-back],[data-jump],[data-showpast],[data-sbout],' +
       '[data-tedit],[data-tnew],[data-tsave],[data-tcancel],[data-tdel]');
     if (!t) return;
 
@@ -628,7 +759,7 @@
         toast((what === 'подпись' ? 'подпись' : what) + ' скопирован' + (what === 'подпись' ? 'а' : '') + ' ✓');
         if (item && what !== 'подпись' && !store.copied[item]) {
           store.copied[item] = Date.now();
-          save();
+          markChanged(item);
           markCopied(item);
         }
       });
@@ -638,7 +769,7 @@
       var id = t.getAttribute('data-mark');
       if (store.done[id]) delete store.done[id];
       else store.done[id] = Date.now();
-      save();
+      markChanged(id);
       render();
       return;
     }
@@ -654,6 +785,7 @@
     if (t.hasAttribute('data-mood')) { ui.adMood = t.getAttribute('data-mood'); store.adMood = ui.adMood; save(); render(); return; }
     if (t.hasAttribute('data-hideused')) { ui.hideUsed = !ui.hideUsed; store.hideUsed = ui.hideUsed; save(); render(); return; }
     if (t.hasAttribute('data-seg')) { ui.tgSeg = t.getAttribute('data-seg'); store.tgSeg = ui.tgSeg; save(); render(); return; }
+    if (t.hasAttribute('data-sbout')) { signOut(); return; }
     if (t.hasAttribute('data-showpast')) { ui.showPast = !ui.showPast; render(); return; }
   });
 
@@ -695,6 +827,13 @@
     var f = document.querySelector('[data-tform] .tf-title');
     if (f && (t.hasAttribute('data-tedit') || t.hasAttribute('data-tnew'))) f.focus();
   }
+
+  document.addEventListener('submit', function (e) {
+    var f = e.target.closest('[data-sbform]');
+    if (!f) return;
+    e.preventDefault();
+    signIn(f.elements.email.value.trim(), f.elements.pass.value);
+  });
 
   document.addEventListener('change', function (e) {
     var id = e.target.getAttribute && e.target.getAttribute('data-task');
@@ -749,7 +888,7 @@
     render();
   }
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible') refreshTime(false);
+    if (document.visibilityState === 'visible') { refreshTime(false); pullMarks(); pushMarks(); }
   });
   setInterval(function () {
     if (document.visibilityState === 'visible') refreshTime(false);
@@ -760,4 +899,6 @@
   ui.tab = TABS.indexOf(initial) >= 0 ? initial : 'tiktok';
   render();
   lastSig = timeSig();
+  pullMarks();
+  pushMarks();
 })();
