@@ -252,7 +252,7 @@
     if (t.indexOf('бывш') >= 0) return 't-ex';
     if (t.indexOf('жиза') >= 0) return 't-zhiza';
     if (/семь|школ|детств|мама|папа/.test(t)) return 't-family';
-    if (/сериал/.test(t)) return 't-serial';
+    if (/остывает/.test(t)) return 't-serial';
     return '';
   }
 
@@ -461,7 +461,7 @@
 
     var isSad = ui.tab === 'sad';
     return '<div class="section-title">' + (isSad ? 'Грустное' : 'Мои видео') + '</div>' +
-      (isSad ? '<div class="note">Серия «до слез»: подписки не цель. 6 серий одной пары, переписки и петли.</div>' : '') +
+      (isSad ? '<div class="note">«До слез»: подписки не цель. Переписки «ты: / он:» и петли.</div>' : '') +
       '<div class="days-wrap" id="daysWrap"><div class="days" id="days">' + chips + '</div></div>' +
       '<div class="day-head"><div><div class="day-title">' + dateLong(date) + '</div>' +
       '<div class="day-sub">' + day.items.length + ' ' + plural(day.items.length, 'текст', 'текста', 'текстов') + (date >= calendarToday() ? ' · время ставь в Studio' : '') + '</div></div>' +
