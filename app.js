@@ -253,6 +253,7 @@
     if (t.indexOf('жиза') >= 0) return 't-zhiza';
     if (/семь|школ|детств|мама|папа/.test(t)) return 't-family';
     if (/остывает/.test(t)) return 't-serial';
+    if (/признан/.test(t)) return 't-hot';
     return '';
   }
 
@@ -443,7 +444,8 @@
     var cards = items.map(function (it) {
       var test = it.test ? '<span class="chip test">' + (/^(тест|тренд|охват|свобод)/i.test(it.test) ? '' : 'тест: ') + esc(it.test) + '</span>' : '';
       var time = it.slot ? '<span class="time">' + altTime(it.slot) + ' <span class="alt">· ' + esc(it.slot) + ' мск</span></span>' : '';
-      return '<article class="card' + (store.done[it.id] ? ' done' : '') + (it.id === nextId ? ' next' : '') + '" data-card="' + it.id + '">' +
+      return '<article class="card' + (store.done[it.id] ? ' done' : '') + (it.id === nextId ? ' next' : '') + (it.hot ? ' hot' : '') + '" data-card="' + it.id + '">' +
+        (it.hot ? '<div class="hot-badge">🔥 самое горячее</div>' : '') +
         '<div class="card-top"><span class="num">' + it.n + '</span>' +
         '<span class="chip theme ' + themeClass(it.theme) + '">' + esc(it.theme.toLowerCase()) + '</span>' + test +
         (it.id === nextId ? '<span class="chip next-badge">следующий</span>' : '') + time + '</div>' +
@@ -461,7 +463,7 @@
 
     var isSad = ui.tab === 'sad';
     return '<div class="section-title">' + (isSad ? 'Грустное' : 'Мои видео') + '</div>' +
-      (isSad ? '<div class="note">«До слез»: подписки не цель. Переписки «ты: / он:» и петли.</div>' : '') +
+      (isSad ? '<div class="note">«До слез»: подписки не цель. Переписки «ты: / он:» и петли. 🔥 первым в дне: признание, как «читаю всё» (500 подписок на 100K).</div>' : '') +
       '<div class="days-wrap" id="daysWrap"><div class="days" id="days">' + chips + '</div></div>' +
       '<div class="day-head"><div><div class="day-title">' + dateLong(date) + '</div>' +
       '<div class="day-sub">' + day.items.length + ' ' + plural(day.items.length, 'текст', 'текста', 'текстов') + (date >= calendarToday() ? ' · время ставь в Studio' : '') + '</div></div>' +

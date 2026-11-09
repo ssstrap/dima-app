@@ -129,6 +129,9 @@ button { font: inherit; color: inherit; }
 .chip.t-zhiza { color: var(--zhiza); background: rgba(201, 168, 255, .12); }
 .chip.t-ex { color: var(--ex); background: rgba(116, 180, 255, .12); }
 .chip.t-family { color: var(--family); background: rgba(102, 219, 160, .12); }
+.card.hot { border-color: rgba(255, 138, 61, .6); box-shadow: 0 0 0 1px rgba(255, 138, 61, .25), 0 10px 30px -12px rgba(255, 138, 61, .45); }
+.hot-badge { display: inline-block; margin-bottom: 8px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; color: #ff8a3d; background: rgba(255, 138, 61, .15); }
+.chip.t-hot { color: #ff8a3d; background: rgba(255, 138, 61, .12); }
 .chip.t-serial { color: #c9a8ff; background: rgba(201, 168, 255, .12); }
 .chip.test { color: var(--test); border: 1px dashed rgba(255, 216, 77, .5); padding: 3px 9px; }
 .chip.next-badge { background: var(--grad-btn); color: #fff; }
