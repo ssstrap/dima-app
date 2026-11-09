@@ -129,6 +129,7 @@ button { font: inherit; color: inherit; }
 .chip.t-zhiza { color: var(--zhiza); background: rgba(201, 168, 255, .12); }
 .chip.t-ex { color: var(--ex); background: rgba(116, 180, 255, .12); }
 .chip.t-family { color: var(--family); background: rgba(102, 219, 160, .12); }
+.chip.t-serial { color: #c9a8ff; background: rgba(201, 168, 255, .12); }
 .chip.test { color: var(--test); border: 1px dashed rgba(255, 216, 77, .5); padding: 3px 9px; }
 .chip.next-badge { background: var(--grad-btn); color: #fff; }
 .btn.primary.was { background: linear-gradient(120deg, rgba(12, 154, 112, .45), rgba(21, 86, 170, .45)); }

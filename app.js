@@ -3,14 +3,16 @@
 
   var D = window.DIMA || {};
   var META = D.meta || {};
-  var DAYS = D.tiktok || [];
+  var VIDEO = D.tiktok || [];
+  var SAD = D.sad || [];
+  var DAYS = VIDEO; // дни текущей вкладки роликов: «Видео» или «Грустное»
   var ADS = D.ads || { items: [], moods: [] };
   var TG = D.tg || { channels: [], stories: [] };
   var TASKS = D.tasks || { sections: [], tasks: [] };
   var INSPO = D.inspo || { authors: [] };
   var BOARD = D.board || { sections: [], items: [] };
   var TZ = META.tz || { label: 'Астана', offsetFromMsk: 2 };
-  var TABS = ['tasks', 'inspo', 'tiktok', 'tg'];
+  var TABS = ['tasks', 'inspo', 'tiktok', 'sad', 'tg'];
 
   var SOUNDS = {
     'заботливый': ['🤍', 'тёплый, спокойный', '#ffb36b'],
@@ -192,7 +194,8 @@
     filter: 'все',
     adMood: store.adMood || 'все',
     hideUsed: !!store.hideUsed,
-    tgSeg: store.tgSeg || 'osnova'
+    tgSeg: store.tgSeg || 'osnova',
+    vid: { tiktok: { day: null, filter: 'все' }, sad: { day: null, filter: 'все' } }
   };
 
   // ---------- время: всё считаем по Москве ----------
@@ -249,6 +252,7 @@
     if (t.indexOf('бывш') >= 0) return 't-ex';
     if (t.indexOf('жиза') >= 0) return 't-zhiza';
     if (/семь|школ|детств|мама|папа/.test(t)) return 't-family';
+    if (/сериал/.test(t)) return 't-serial';
     return '';
   }
 
@@ -405,7 +409,7 @@
   }
 
   function renderTiktok() {
-    if (!DAYS.length) return '<div class="empty">Текстов пока нет. Скоро подгружу.</div>' + soon();
+    if (!DAYS.length) return '<div class="empty">' + (ui.tab === 'sad' ? 'Грустных' : 'Текстов') + ' пока нет. Скоро подгружу.</div>' + soon();
     var date = pickDay();
     ui.day = date;
     var day = DAYS.filter(function (d) { return d.date === date; })[0];
@@ -455,7 +459,9 @@
         '</article>';
     }).join('');
 
-    return '<div class="section-title">Мои видео</div>' +
+    var isSad = ui.tab === 'sad';
+    return '<div class="section-title">' + (isSad ? 'Грустное' : 'Мои видео') + '</div>' +
+      (isSad ? '<div class="note">Серия «до слез»: подписки не цель. 6 серий одной пары, переписки и петли.</div>' : '') +
       '<div class="days-wrap" id="daysWrap"><div class="days" id="days">' + chips + '</div></div>' +
       '<div class="day-head"><div><div class="day-title">' + dateLong(date) + '</div>' +
       '<div class="day-sub">' + day.items.length + ' ' + plural(day.items.length, 'текст', 'текста', 'текстов') + (date >= calendarToday() ? ' · время ставь в Studio' : '') + '</div></div>' +
@@ -675,6 +681,7 @@
     copyN = 0;
     var daysEl = document.getElementById('days');
     var keepScroll = daysEl ? daysEl.scrollLeft : null;
+    DAYS = ui.tab === 'sad' ? SAD : VIDEO;
     var html = ui.tab === 'tg' ? renderTg() : ui.tab === 'tasks' ? renderBoard() :
       ui.tab === 'inspo' ? renderInspo() : renderTiktok();
     view.innerHTML = html;
@@ -715,6 +722,9 @@
     if (TABS.indexOf(tab) < 0) tab = 'tiktok';
     if (tab !== 'inspo') ui.author = null;
     var changed = ui.tab !== tab;
+    // у «Видео» и «Грустного» свой выбранный день и фильтр
+    if (ui.vid[ui.tab]) ui.vid[ui.tab] = { day: ui.day, filter: ui.filter };
+    if (changed && ui.vid[tab]) { ui.day = ui.vid[tab].day; ui.filter = ui.vid[tab].filter; }
     ui.tab = tab;
     store.tab = tab;
     save();
@@ -880,6 +890,7 @@
     if (contentToday() !== lastDay) {
       lastDay = contentToday();
       ui.day = null;
+      ui.vid.tiktok.day = ui.vid.sad.day = null;
     }
     var sig = timeSig();
     if (!force && sig === lastSig) return;
