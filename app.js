@@ -11,8 +11,9 @@
   var TASKS = D.tasks || { sections: [], tasks: [] };
   var INSPO = D.inspo || { authors: [] };
   var BOARD = D.board || { sections: [], items: [] };
+  var SKETCH = D.sketches || { items: [], formats: [] };
   var TZ = META.tz || { label: 'Астана', offsetFromMsk: 2 };
-  var TABS = ['tasks', 'inspo', 'tiktok', 'sad', 'tg'];
+  var TABS = ['tasks', 'inspo', 'tiktok', 'sad', 'sketch', 'tg'];
 
   var SOUNDS = {
     'заботливый': ['🤍', 'тёплый, спокойный', '#ffb36b'],
@@ -194,6 +195,8 @@
     filter: 'все',
     adMood: store.adMood || 'все',
     hideUsed: !!store.hideUsed,
+    skFormat: store.skFormat || 'все',
+    skHide: !!store.skHide,
     tgSeg: store.tgSeg || 'osnova',
     vid: { tiktok: { day: null, filter: 'все' }, sad: { day: null, filter: 'все' } }
   };
@@ -509,6 +512,56 @@
       '<div class="list">' + (cards || '<div class="empty">Тут пусто. Сними фильтр или «скрыть использованные».</div>') + '</div>' + soon();
   }
 
+  // ---------- Скетчи ----------
+  function renderSketch() {
+    var items = SKETCH.items || [];
+    var formats = SKETCH.formats || [];
+    var TAGS = '#жиза #щп #правда';
+    var shot = items.filter(function (it) { return store.done[it.id]; }).length;
+    var chips = [{ key: 'все', name: 'все' }].concat(formats).map(function (f) {
+      var cnt = f.key === 'все' ? items.length : items.filter(function (it) { return it.format === f.key; }).length;
+      return '<button class="fchip' + (ui.skFormat === f.key ? ' on' : '') + '" data-skf="' + esc(f.key) + '" type="button">' + esc(f.name) + '<span class="cnt">' + cnt + '</span></button>';
+    }).join('') +
+      '<button class="fchip' + (ui.skHide ? ' on' : '') + '" data-skhide="1" type="button">скрыть снятые</button>';
+    var fname = {};
+    formats.forEach(function (f) { fname[f.key] = f.name; });
+    var list = items.filter(function (it) {
+      return (ui.skFormat === 'все' || it.format === ui.skFormat) && !(ui.skHide && store.done[it.id]);
+    });
+    var cards = list.map(function (it) {
+      var tags = it.tags || TAGS;
+      var screen = [it.top, it.hook].filter(Boolean).join('\n') + '\n\n' + it.shots.map(function (s) { return s.say; }).join('\n\n');
+      var shots = it.shots.map(function (s) {
+        return '<div class="shot"><div class="shot-h">' + esc(s.label) + '</div>' +
+          '<div class="shot-row"><span class="shot-ico">' + esc(s.emo || '🎭') + '</span><span><span class="lbl">играешь</span><b>' + esc(s.emotion) + '</b></span></div>' +
+          '<div class="shot-row"><span class="shot-ico">🎬</span><span><span class="lbl">делаешь</span>' + esc(s.act) + '</span></div>' +
+          '<div class="shot-say" data-copy="' + reg(s.say) + '" data-item="' + it.id + '" data-what="текст"><span class="lbl">текст на экране</span>' + esc(s.say) + '</div></div>';
+      }).join('');
+      return '<article class="card' + (store.done[it.id] ? ' done' : '') + (it.first ? ' next' : '') + '" data-card="' + it.id + '">' +
+        '<div class="card-top"><span class="num">' + it.n + '</span>' +
+        '<span class="chip theme t-zhiza">' + esc(fname[it.format] || it.format) + '</span>' +
+        '<span class="chip theme ' + (it.role === 'брат' ? 't-family' : 't-care') + '">' + esc(it.role) + '</span>' +
+        (it.first ? '<span class="chip next-badge">снять первым</span>' : '') +
+        '<span class="time">' + esc(it.len) + '</span></div>' +
+        '<div class="sk-hook"><span>' + esc(it.top) + '</span><b>' + esc(it.hook) + '</b></div>' +
+        shots +
+        captionRow(it.caption, tags) +
+        (it.props ? '<div class="sk-props"><span class="lbl">реквизит</span>' + esc(it.props) + '</div>' : '') +
+        '<div class="actions">' +
+        copyMain(screen, it.id, 'текст', 'скопировать текст') +
+        '<button class="btn" type="button" data-copy="' + reg(fullCaption(it.caption, tags)) + '" data-item="' + it.id + '" data-what="подпись">подпись</button>' +
+        '<button class="btn toggle" type="button" data-mark="' + it.id + '" aria-pressed="' + !!store.done[it.id] + '" aria-label="снял">✓</button>' +
+        '</div></article>';
+    }).join('');
+    var howto = (SKETCH.howto || []).map(function (h) { return '<li>' + esc(h) + '</li>'; }).join('');
+    return '<div class="section-title">Скетчи</div>' +
+      (SKETCH.note ? '<div class="note">' + esc(SKETCH.note) + '</div>' : '') +
+      (howto ? '<details class="sk-how"><summary>как снимать за 20 минут</summary><ul>' + howto + '</ul></details>' : '') +
+      '<div class="hint" style="margin-bottom:10px">Снято ' + shot + ' из ' + items.length + ' · тап по тексту копирует</div>' +
+      '<div class="chips filters">' + chips + '</div>' +
+      '<div class="list">' + (cards || '<div class="empty">Тут пусто. Сними фильтр или «скрыть снятые».</div>') + '</div>';
+  }
+
   // ---------- Telegram ----------
   function renderTg() {
     var channels = TG.channels || [];
@@ -685,7 +738,7 @@
     var keepScroll = daysEl ? daysEl.scrollLeft : null;
     DAYS = ui.tab === 'sad' ? SAD : VIDEO;
     var html = ui.tab === 'tg' ? renderTg() : ui.tab === 'tasks' ? renderBoard() :
-      ui.tab === 'inspo' ? renderInspo() : renderTiktok();
+      ui.tab === 'inspo' ? renderInspo() : ui.tab === 'sketch' ? renderSketch() : renderTiktok();
     view.innerHTML = html;
     document.querySelectorAll('.tab').forEach(function (b) {
       var on = b.getAttribute('data-tab') === ui.tab;
@@ -735,7 +788,7 @@
   }
 
   document.addEventListener('click', function (e) {
-    var t = e.target.closest('[data-tab],[data-copy],[data-mark],[data-day],[data-filter],[data-mood],[data-hideused],[data-seg],[data-author],[data-back],[data-jump],[data-showpast],[data-sbout],' +
+    var t = e.target.closest('[data-tab],[data-copy],[data-mark],[data-day],[data-filter],[data-mood],[data-hideused],[data-skf],[data-skhide],[data-seg],[data-author],[data-back],[data-jump],[data-showpast],[data-sbout],' +
       '[data-tedit],[data-tnew],[data-tsave],[data-tcancel],[data-tdel]');
     if (!t) return;
 
@@ -795,6 +848,8 @@
     }
     if (t.hasAttribute('data-filter')) { ui.filter = t.getAttribute('data-filter'); render(); scrollToList(); return; }
     if (t.hasAttribute('data-mood')) { ui.adMood = t.getAttribute('data-mood'); store.adMood = ui.adMood; save(); render(); return; }
+    if (t.hasAttribute('data-skf')) { ui.skFormat = t.getAttribute('data-skf'); store.skFormat = ui.skFormat; save(); render(); return; }
+    if (t.hasAttribute('data-skhide')) { ui.skHide = !ui.skHide; store.skHide = ui.skHide; save(); render(); return; }
     if (t.hasAttribute('data-hideused')) { ui.hideUsed = !ui.hideUsed; store.hideUsed = ui.hideUsed; save(); render(); return; }
     if (t.hasAttribute('data-seg')) { ui.tgSeg = t.getAttribute('data-seg'); store.tgSeg = ui.tgSeg; save(); render(); return; }
     if (t.hasAttribute('data-sbout')) { signOut(); return; }
