@@ -463,7 +463,7 @@
 
     var isSad = ui.tab === 'sad';
     return '<div class="section-title">' + (isSad ? 'Грустное' : 'Мои видео') + '</div>' +
-      (isSad ? '<div class="note">«До слез», для 15–18. 🔥 признание как «читаю всё» (500 подписок на 100K): 11.11 в 18:35, 12–13.11 последним в 23:10. Утром 13.11 сравним время.</div>' : '') +
+      (isSad ? '<div class="note">Для 15–18: в каждом тексте боль и маленький выход в конце. 🔥 одно признание как «читаю всё» (500 подписок на 100K): 11.11 в 23:10.</div>' : '') +
       '<div class="days-wrap" id="daysWrap"><div class="days" id="days">' + chips + '</div></div>' +
       '<div class="day-head"><div><div class="day-title">' + dateLong(date) + '</div>' +
       '<div class="day-sub">' + day.items.length + ' ' + plural(day.items.length, 'текст', 'текста', 'текстов') + (date >= calendarToday() ? ' · время ставь в Studio' : '') + '</div></div>' +
