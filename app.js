@@ -13,7 +13,7 @@
   var BOARD = D.board || { sections: [], items: [] };
   var SKETCH = D.sketches || { items: [], formats: [] };
   var TZ = META.tz || { label: 'Астана', offsetFromMsk: 2 };
-  var TABS = ['tasks', 'inspo', 'tiktok', 'sad', 'sketch', 'tg'];
+  var TABS = ['tasks', 'tiktok', 'sketch', 'tg']; // 15.11 скрыты inspo и sad (Дима), вернуть: добавить сюда и раскомментировать кнопки в index.html
 
   var SOUNDS = {
     'заботливый': ['🤍', 'тёплый, спокойный', '#ffb36b'],
